@@ -1,5 +1,6 @@
 package sinc2.kb.compact;
 
+import sinc2.kb.Record;
 import sinc2.util.ArrayOperation;
 
 import java.util.*;
@@ -210,6 +211,226 @@ public class IntTable implements Iterable<int[]> {
             }
         }
         return new MatchedSubTables(sub_tables1, sub_tables2);
+    }
+
+    /**
+     * Find the intersection of this table and another list of rows. The two should have the same number of columns, and
+     * the list of rows should NOT contain repeated elements.
+     * Note that this method WILL sort the 1D arrays in "rows" to some order.
+     */
+    public int[][] intersection(int[][] rows) {
+        if (0 == rows.length || totalCols != rows[0].length) {
+            return new int[0][];
+        }
+        Arrays.sort(rows, Comparator.comparingInt(r -> r[queryCol]));
+        int[][] sorted_rows = sortedRowsByCols[queryCol];
+        int[] values = valuesByCols[queryCol];
+        int[] start_offsets = startOffsetsByCols[queryCol];
+        List<int[]> results = new ArrayList<>();
+        int idx = 0;
+        int idx2 = 0;
+        while (idx < values.length && idx2 < rows.length) {
+            int val = values[idx];
+            int val2 = rows[idx2][queryCol];
+            if (val < val2) {
+                idx++;
+            } else if (val > val2) {
+                idx2++;
+            } else {    // val == val2
+                final int[] row = rows[idx2];
+                final int offset_end = start_offsets[idx+1];
+                for (int offset = start_offsets[idx]; offset < offset_end; offset++) {
+                    if (Arrays.equals(sorted_rows[offset], row)) {
+                        results.add(row);
+                        break;
+                    }
+                }
+                idx2++;
+            }
+        }
+        return results.toArray(new int[0][]);
+    }
+
+    /**
+     * Find the intersection of this table and another. The two tables should have the same number of columns.
+     */
+    public int[][] intersection(IntTable another) {
+        if (totalCols != another.totalCols) {
+            return new int[0][];
+        }
+        final int target_col = (valuesByCols[queryCol].length >= another.valuesByCols[another.queryCol].length) ?
+                queryCol : another.queryCol;
+        int[][] sorted_rows = sortedRowsByCols[target_col];
+        int[][] sorted_rows2 = another.sortedRowsByCols[target_col];
+        int[] values = valuesByCols[target_col];
+        int[] values2 = another.valuesByCols[target_col];
+        int[] start_offsets = startOffsetsByCols[target_col];
+        int[] start_offsets2 = another.startOffsetsByCols[target_col];
+        List<int[]> results = new ArrayList<>();
+        int idx = 0;
+        int idx2 = 0;
+        while (idx < values.length && idx2 < values2.length) {
+            int val = values[idx];
+            int val2 = values2[idx2];
+            if (val < val2) {
+                idx++;
+            } else if (val > val2) {
+                idx2++;
+            } else {    // val1 == val2
+                final int offset_end = start_offsets[idx+1];
+                final int offset_end2 = start_offsets2[idx2+1];
+                for (int offset = start_offsets[idx]; offset < offset_end; offset++) {
+                    for (int offset2 = start_offsets2[idx2]; offset2 < offset_end2; offset2++) {
+                        if (Arrays.equals(sorted_rows[offset], sorted_rows2[offset2])) {
+                            results.add(sorted_rows[offset]);
+                            break;
+                        }
+                    }
+                }
+                idx++;
+                idx2++;
+            }
+        }
+        return results.toArray(new int[0][]);
+    }
+
+    /**
+     * Get the list of different values in a certain column. The returned array SHALL NOT be modified.
+     */
+    public int[] valuesInColumn(int col) {
+        return valuesByCols[col];
+    }
+
+    /**
+     * Get all the rows in the table. The returned array SHALL NOT be modified.
+     */
+    public int[][] getAllRows() {
+        return sortedRowsByCols[0];
+    }
+
+    /**
+     * Join two tables by "col1" in "tab1" and "col2" in "tab2". The semantics is the same as the following SQL query:
+     * SELECT DISTINCT tab1.selectedCols1, tab2.selectedCols2
+     * FROM tab1, tab2
+     * WHERE tab1.col1=tab2.col2
+     */
+    public static int[][] join(
+            IntTable tab1, int col1, int[] selectedCols1, IntTable tab2, int col2, int[] selectedCols2
+    ) {
+        final int result_arity = selectedCols1.length + selectedCols2.length;
+        final int[] values1 = tab1.valuesByCols[col1];
+        final int[] values2 = tab2.valuesByCols[col2];
+        final int[] start_offsets1 = tab1.startOffsetsByCols[col1];
+        final int[] start_offsets2 = tab2.startOffsetsByCols[col2];
+        final int[][] sorted_rows1 = tab1.sortedRowsByCols[col1];
+        final int[][] sorted_rows2 = tab2.sortedRowsByCols[col2];
+        Set<Record> result_set = new HashSet<>();
+        int idx1 = 0;
+        int idx2 = 0;
+        while (idx1 < values1.length && idx2 < values2.length) {
+            int val1 = values1[idx1];
+            int val2 = values2[idx2];
+            if (val1 < val2) {
+                idx1++;
+            } else if (val1 > val2) {
+                idx2++;
+            } else {    // val1 == val2, note that repeated elements should be removed
+                final int offset_end1 = start_offsets1[idx1+1];
+                final int offset_end2 = start_offsets2[idx2+1];
+                Set<Record> tab1_selected_cols = new HashSet<>();
+                Set<Record> tab2_selected_cols = new HashSet<>();
+                for (int offset1 = start_offsets1[idx1]; offset1 < offset_end1; offset1++) {
+                    int[] row = sorted_rows1[offset1];
+                    int[] selected_cols = new int[selectedCols1.length];
+                    for (int i = 0; i < selected_cols.length; i++) {
+                        selected_cols[i] = row[selectedCols1[i]];
+                    }
+                    tab1_selected_cols.add(new Record(selected_cols));
+                }
+                for (int offset2 = start_offsets2[idx2]; offset2 < offset_end2; offset2++) {
+                    int[] row = sorted_rows2[offset2];
+                    int[] selected_cols = new int[selectedCols2.length];
+                    for (int i = 0; i < selected_cols.length; i++) {
+                        selected_cols[i] = row[selectedCols2[i]];
+                    }
+                    tab2_selected_cols.add(new Record(selected_cols));
+                }
+                for (Record record1: tab1_selected_cols) {
+                    for (Record record2: tab2_selected_cols) {
+                        int[] combined = new int[result_arity];
+                        System.arraycopy(record1.args, 0, combined, 0, selectedCols1.length);
+                        System.arraycopy(record2.args, 0, combined, selectedCols1.length, selectedCols2.length);
+                        result_set.add(new Record(combined));
+                    }
+                }
+
+                idx1++;
+                idx2++;
+            }
+        }
+        int[][] results = new int[result_set.size()][];
+        int idx = 0;
+        for (Record record: result_set) {
+            results[idx] = record.args;
+            idx++;
+        }
+        return results;
+    }
+
+
+    /**
+     * Join two tables by "col1" in "tab1" and "col2" in "tab2". The semantics is the same as the following SQL query:
+     * SELECT DISTINCT tab1.selectedCol1, tab2.selectedCol2
+     * FROM tab1, tab2
+     * WHERE tab1.col1=tab2.col2
+     */
+    public static int[][] join(
+            IntTable tab1, int col1, int selectedCol1, IntTable tab2, int col2, int selectedCol2
+    ) {
+        final int[] values1 = tab1.valuesByCols[col1];
+        final int[] values2 = tab2.valuesByCols[col2];
+        final int[] start_offsets1 = tab1.startOffsetsByCols[col1];
+        final int[] start_offsets2 = tab2.startOffsetsByCols[col2];
+        final int[][] sorted_rows1 = tab1.sortedRowsByCols[col1];
+        final int[][] sorted_rows2 = tab2.sortedRowsByCols[col2];
+        HashSet<Record> result_set = new HashSet<>();
+        int idx1 = 0;
+        int idx2 = 0;
+        while (idx1 < values1.length && idx2 < values2.length) {
+            int val1 = values1[idx1];
+            int val2 = values2[idx2];
+            if (val1 < val2) {
+                idx1++;
+            } else if (val1 > val2) {
+                idx2++;
+            } else {    // val1 == val2, note that repeated elements should be removed
+                final int offset_end1 = start_offsets1[idx1+1];
+                final int offset_end2 = start_offsets2[idx2+1];
+                Set<Integer> tab1_selected_values = new HashSet<>();
+                Set<Integer> tab2_selected_values = new HashSet<>();
+                for (int offset1 = start_offsets1[idx1]; offset1 < offset_end1; offset1++) {
+                    tab1_selected_values.add(sorted_rows1[offset1][selectedCol1]);
+                }
+                for (int offset2 = start_offsets2[idx2]; offset2 < offset_end2; offset2++) {
+                    tab2_selected_values.add(sorted_rows2[offset2][selectedCol2]);
+                }
+                for (int selected_val1: tab1_selected_values) {
+                    for (int selected_val2: tab2_selected_values) {
+                        result_set.add(new Record(new int[]{selected_val1, selected_val2}));
+                    }
+                }
+
+                idx1++;
+                idx2++;
+            }
+        }
+        int[][] results = new int[result_set.size()][];
+        int idx = 0;
+        for (Record record: result_set) {
+            results[idx] = record.args;
+            idx++;
+        }
+        return results;
     }
 
     public int totalRows() {

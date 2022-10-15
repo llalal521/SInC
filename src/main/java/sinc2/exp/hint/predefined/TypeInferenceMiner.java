@@ -1,45 +1,35 @@
 package sinc2.exp.hint.predefined;
 
-import sinc2.kb.Record;
+import sinc2.kb.compact.SimpleRelation;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Template miner for:
  * 1. Type Inference:
- *   h(X) :- p(..., Xi, ...)
+ *   h(X) :- p(..., Xi, ...), φ(p) > 1
  *
  * @since 2.0
  */
 public class TypeInferenceMiner extends TemplateMiner {
     @Override
-    public List<MatchedRule> matchTemplate(
-            List<Set<Record>> relations, List<Set<Record>> positiveEntailments, List<String> functorNames
-    ) {
+    public List<MatchedRule> matchTemplate(SimpleRelation[] relations) {
         List<MatchedRule> matched_rules = new ArrayList<>();
 
         /* Check if there are type relations */
-        List<Set<Record>> type_relations = new ArrayList<>();
-        List<String> type_functor_names = new ArrayList<>();
-        List<Set<Record>> type_pos_entails = new ArrayList<>();
-        for (int i = 0; i < relations.size(); i++) {
-            Set<Record> relation = relations.get(i);
-            if (!relation.isEmpty() && 1 == relation.iterator().next().args.length) {
+        List<SimpleRelation> type_relations = new ArrayList<>();
+        for (SimpleRelation relation : relations) {
+            if (1 == relation.totalCols()) {
                 type_relations.add(relation);
-                type_functor_names.add(functorNames.get(i));
-                type_pos_entails.add(positiveEntailments.get(i));
             }
         }
         if (type_relations.isEmpty()) {
             return matched_rules;
         }
 
-        for (int p = 0; p < relations.size(); p++) {
-            Set<Record> relation_p = relations.get(p);
-            if (relation_p.isEmpty()) {
-                continue;
-            }
-            int arity = relation_p.iterator().next().args.length;
+        for (SimpleRelation relation_p : relations) {
+            final int arity = relation_p.totalCols();
             if (1 >= arity) {
                 /* If the arity of p is also 1, the patterns are collided with subsumption */
                 continue;
@@ -48,16 +38,17 @@ public class TypeInferenceMiner extends TemplateMiner {
             /* Match for every argument */
             for (int arg_idx = 0; arg_idx < arity; arg_idx++) {
                 /* Find entailments */
-                Set<Record> entailments = new HashSet<>();
-                for (Record record: relation_p) {
-                    entailments.add(new Record(new int[]{record.args[arg_idx]}));
+                int[] values = relation_p.valuesInColumn(arg_idx);
+                int[][] entailments = new int[values.length][];
+                for (int i = 0; i < values.length; i++) {
+                    entailments[i] = new int[]{values[i]};
                 }
 
                 /* Match types */
-                for (int h = 0; h < type_relations.size(); h++) {
+                for (SimpleRelation head : type_relations) {
                     checkThenAdd(
-                            type_relations.get(h), type_pos_entails.get(h), entailments, matched_rules,
-                            typeInferenceRuleString(type_functor_names.get(h), functorNames.get(p), arg_idx, arity)
+                            head, entailments, matched_rules,
+                            typeInferenceRuleString(head.name, relation_p.name, arg_idx, arity)
                     );
                 }
             }
@@ -65,8 +56,8 @@ public class TypeInferenceMiner extends TemplateMiner {
         return matched_rules;
     }
 
-    protected String typeInferenceRuleString(String headFunctor, String bodyFunctorName, int bodyArgIdx, int bodyArity) {
-        return headFunctor + "(X):-" + bodyFunctorName + '(' + "?,".repeat(bodyArgIdx) + 'X' +
+    protected String typeInferenceRuleString(String h, String p, int bodyArgIdx, int bodyArity) {
+        return h + "(X):-" + p + '(' + "?,".repeat(bodyArgIdx) + 'X' +
                 ",?".repeat(bodyArity - bodyArgIdx - 1) + ')';
     }
 

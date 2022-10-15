@@ -1,11 +1,9 @@
 package sinc2.exp.hint.predefined;
 
-import sinc2.kb.Record;
+import sinc2.kb.compact.SimpleRelation;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Template miner for:
@@ -16,35 +14,34 @@ import java.util.Set;
  */
 public class DualMiner extends TemplateMiner {
     @Override
-    public List<MatchedRule> matchTemplate(
-            List<Set<Record>> relations, List<Set<Record>> positiveEntailments, List<String> functorNames
-    ) {
+    public List<MatchedRule> matchTemplate(SimpleRelation[] relations) {
         List<MatchedRule> matched_rules = new ArrayList<>();
-        for (int p = 0; p < relations.size(); p++) {
-            Set<Record> relation_p = relations.get(p);
-            if (relation_p.isEmpty() || 2 != relation_p.iterator().next().args.length) {
+        for (SimpleRelation relation_p : relations) {
+            if (2 != relation_p.totalCols()) {
                 continue;
             }
 
             /* Find entailments */
-            Set<Record> entailments = new HashSet<>();
-            for (Record record: relation_p) {
-                entailments.add(new Record(new int[]{record.args[1], record.args[0]}));
+            int[][] records = relation_p.getAllRows();
+            int[][] entailments = new int[records.length][];
+            for (int i = 0; i < records.length; i++) {
+                int[] record = records[i];
+                entailments[i] = new int[]{record[1], record[0]};
             }
 
             /* Match head & check validness */
-            for (int h = 0; h < relations.size(); h++) {
-                checkThenAdd(
-                        relations.get(h), positiveEntailments.get(h), entailments, matched_rules,
-                        dualRuleString(h, p, functorNames)
-                );
+            for (SimpleRelation head : relations) {
+                if (2 != head.totalCols()) {
+                    continue;
+                }
+                checkThenAdd(head, entailments, matched_rules, dualRuleString(head.name, relation_p.name));
             }
         }
         return matched_rules;
     }
 
-    protected String dualRuleString(int h, int p, List<String> functorNames) {
-        return String.format("%s(X,Y):-%s(Y,X)", functorNames.get(h), functorNames.get(p));
+    protected String dualRuleString(String h, String p) {
+        return String.format("%s(X,Y):-%s(Y,X)", h, p);
     }
 
     @Override

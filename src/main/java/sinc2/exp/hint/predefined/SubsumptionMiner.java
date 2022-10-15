@@ -1,10 +1,9 @@
 package sinc2.exp.hint.predefined;
 
-import sinc2.kb.Record;
+import sinc2.kb.compact.SimpleRelation;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Template miner for:
@@ -18,36 +17,30 @@ public class SubsumptionMiner extends TemplateMiner {
     protected int arity = 0;
 
     @Override
-    public List<MatchedRule> matchTemplate(
-            List<Set<Record>> relations, List<Set<Record>> positiveEntailments, List<String> functorNames
-    ) {
+    public List<MatchedRule> matchTemplate(SimpleRelation[] relations) {
         List<MatchedRule> matched_rules = new ArrayList<>();
-        for (int p = 0; p < relations.size(); p++) {
-            Set<Record> relation_p = relations.get(p);
-            if (relation_p.isEmpty()) {
-                continue;
-            }
-            arity = relation_p.iterator().next().args.length;
+        for (int p = 0; p < relations.length; p++) {
+            SimpleRelation relation_p = relations[p];
 
             /* Match head & check validness */
-            for (int h = 0; h < relations.size(); h++) {
+            for (int h = 0; h < relations.length; h++) {
                 if (h == p) {
                     continue;
                 }
-                Set<Record> head = relations.get(h);
-                if (arity != head.iterator().next().args.length) {
+                SimpleRelation head = relations[h];
+                if (relation_p.totalCols() != head.totalCols()) {
                     continue;
                 }
                 checkThenAdd(
-                        head, positiveEntailments.get(h), relation_p, matched_rules,
-                        subsumptionRuleString(h, p, functorNames)
+                        head, relation_p.getAllRows().clone(), matched_rules,
+                        subsumptionRuleString(head.name, relation_p.name)
                 );
             }
         }
         return matched_rules;
     }
 
-    protected String subsumptionRuleString(int h, int p, List<String> functorNames) {
+    protected String subsumptionRuleString(String h, String p) {
         StringBuilder builder = new StringBuilder();
         builder.append('(').append("X0");   // Assumes that the arity here is no less than 1
         for (int i = 1; i < arity; i++) {
@@ -55,7 +48,7 @@ public class SubsumptionMiner extends TemplateMiner {
         }
         builder.append(')');
         String arg_str = builder.toString();
-        return String.format("%s%s:-%s%s", functorNames.get(h), arg_str, functorNames.get(p), arg_str);
+        return String.format("%s%s:-%s%s", h, arg_str, p, arg_str);
     }
 
     @Override

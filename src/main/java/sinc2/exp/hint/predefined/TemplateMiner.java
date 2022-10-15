@@ -1,21 +1,22 @@
 package sinc2.exp.hint.predefined;
 
-import sinc2.kb.Record;
+import sinc2.kb.compact.SimpleRelation;
 import sinc2.rule.Eval;
 import sinc2.rule.EvalMetric;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * This is the base class of all predefined template miners. Each miner should implement the "matchTemplate" method.
  * Followings are currently defined templates:
  * 1. Type Inference:
- *   h(X) :- p(..., Xi, ...)
+ *   h(X) :- p(..., Xi, ...), φ(p) > 1
  * 2. Reflexive:
  *   h(X, X) :-
  * 3. Subsumption:
@@ -70,43 +71,32 @@ public abstract class TemplateMiner {
      * It also records the positive entailments in corresponding sets.
      *
      * @param relations           The list of input relations
-     * @param positiveEntailments The list of positive entailments by the matched rules in the relations
-     * @param functorNames        The names of the input relations
      * @return All matched rules and their evaluations
      */
-    public abstract List<MatchedRule> matchTemplate(
-            List<Set<Record>> relations, List<Set<Record>> positiveEntailments, List<String> functorNames
-    );
+    public abstract List<MatchedRule> matchTemplate(SimpleRelation[] relations);
 
     /**
      * Check whether a rule satisfies the mining restrictions. If it does, add the rule to the result list and add all
      * positive entailments of the rule to the corresponding entailment set.
      *
      * @param headRelation The head relation
-     * @param entailedHead The set of entailed records in the head
      * @param entailments  The entailments of the rule
      * @param matchedRules The list of discovered rules of the template
      * @param ruleString   The rule string
      */
     protected void checkThenAdd(
-            Set<Record> headRelation, Set<Record> entailedHead, Set<Record> entailments, List<MatchedRule> matchedRules,
-            String ruleString
+            SimpleRelation headRelation, int[][] entailments, List<MatchedRule> matchedRules, String ruleString
     ) {
-        if (COVERAGE_THRESHOLD > ((double) entailments.size()) / headRelation.size()) {
+        if (COVERAGE_THRESHOLD > ((double) entailments.length) / headRelation.totalRows()) {
             return;
         }
-        Set<Record> positive_entailments = new HashSet<>();
-        for (Record entailment: entailments) {
-            if (headRelation.contains(entailment)) {
-                positive_entailments.add(entailment);
-            }
-        }
-        double coverage = ((double) positive_entailments.size()) / headRelation.size();
-        Eval eval = new Eval(null, positive_entailments.size(), entailments.size(), templateLength());
+        int[][] positive_entailments = headRelation.intersection(entailments);
+        double coverage = ((double) positive_entailments.length) / headRelation.totalRows();
+        Eval eval = new Eval(null, positive_entailments.length, entailments.length, templateLength());
         if (COVERAGE_THRESHOLD <= coverage && TAU_THRESHOLD <= eval.value(EvalMetric.CompressionRatio)) {
             /* Add result */
             matchedRules.add(new MatchedRule(ruleString, eval, coverage));
-            entailedHead.addAll(positive_entailments);
+            headRelation.setAllAsEntailed(positive_entailments);
         }
     }
 

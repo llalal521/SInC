@@ -1,8 +1,10 @@
 package sinc2.exp.hint.predefined;
 
-import sinc2.kb.Record;
+import sinc2.kb.compact.IntTable;
+import sinc2.kb.compact.SimpleRelation;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Template miner for:
@@ -15,56 +17,45 @@ import java.util.*;
 public class TransitionMiner extends TemplateMiner {
 
     @Override
-    public List<MatchedRule> matchTemplate(
-            List<Set<Record>> relations, List<Set<Record>> positiveEntailments, List<String> functorNames
-    ) {
+    public List<MatchedRule> matchTemplate(SimpleRelation[] relations) {
         List<MatchedRule> matched_rules = new ArrayList<>();
-        for (int p = 0; p < relations.size(); p++) {
-            Set<Record> relation_p = relations.get(p);
-            if (relation_p.isEmpty() || 2 != relation_p.iterator().next().args.length) {
+        for (int p = 0; p < relations.length; p++) {
+            SimpleRelation relation_p = relations[p];
+            if (2 != relation_p.totalCols()) {
                 continue;
             }
 
-            /* Build temporary indices */
-            Map<Integer, Set<Record>> indices_p1 = new HashMap<>();
-            for (Record record: relation_p) {
-                indices_p1.computeIfAbsent(record.args[1], k -> new HashSet<>()).add(record);
-            }
-
             /* Match another relation */
-            for (int q = 0; q < relations.size(); q++) {
-                Set<Record> relation_q = relations.get(q);
-                if (relation_q.isEmpty() || 2 != relation_q.iterator().next().args.length) {
+            for (int q = 0; q < relations.length; q++) {
+                SimpleRelation relation_q = relations[q];
+                if (2 != relation_q.totalCols()) {
                     continue;
                 }
 
                 /* Find matched arguments & construct entailments */
-                Set<Record> ent_transition = new HashSet<>();
-                Set<Record> ent_dual_trans = new HashSet<>();
-                for (Record record: relation_q) {
-                    Set<Record> matched_records = indices_p1.get(record.args[0]);
-                    if (null != matched_records) {
-                        for (Record matched_record : matched_records) {
-                            ent_transition.add(new Record(new int[]{matched_record.args[0], record.args[1]}));
-                            ent_dual_trans.add(new Record(new int[]{record.args[1], matched_record.args[0]}));
-                        }
-                    }
+                int[][] ent_transition = IntTable.join(relation_p, 1, 0, relation_q, 0, 1);
+                int[][] ent_dual_trans = new int[ent_transition.length][];
+                for (int i = 0; i < ent_transition.length; i++) {
+                    int[] record = ent_transition[i];
+                    ent_dual_trans[i] = new int[] {record[1], record[0]};
                 }
 
                 /* Match head & check validness */
-                for (int h = 0; h < relations.size(); h++) {
+                for (int h = 0; h < relations.length; h++) {
                     if (p == q && q == h) {
                         continue;
                     }
-                    Set<Record> head = relations.get(h);
-                    Set<Record> entailed_head = positiveEntailments.get(h);
+                    SimpleRelation head = relations[h];
+                    if (2 != head.totalCols()) {
+                        continue;
+                    }
                     checkThenAdd(
-                            head, entailed_head, ent_transition, matched_rules,
-                            transitionRuleString(h, p, q, functorNames)
+                            head, ent_transition, matched_rules,
+                            transitionRuleString(head.name, relation_p.name, relation_q.name)
                     );
                     checkThenAdd(
-                            head, entailed_head, ent_dual_trans, matched_rules,
-                            dualTransitionRuleString(h, p, q, functorNames)
+                            head, ent_dual_trans, matched_rules,
+                            dualTransitionRuleString(head.name, relation_p.name, relation_q.name)
                     );
                 }
             }
@@ -82,11 +73,11 @@ public class TransitionMiner extends TemplateMiner {
         return "Transition";
     }
 
-    protected String transitionRuleString(int h, int p, int q, List<String> functorNames) {
-        return String.format("%s(X,Y):-%s(X,Z),%s(Z,Y)", functorNames.get(h), functorNames.get(p), functorNames.get(q));
+    protected String transitionRuleString(String h, String p, String q) {
+        return String.format("%s(X,Y):-%s(X,Z),%s(Z,Y)", h, p, q);
     }
 
-    protected String dualTransitionRuleString(int h, int p, int q, List<String> functorNames) {
-        return String.format("%s(X,Y):-%s(Y,Z),%s(Z,X)", functorNames.get(h), functorNames.get(p), functorNames.get(q));
+    protected String dualTransitionRuleString(String h, String p, String q) {
+        return String.format("%s(X,Y):-%s(Y,Z),%s(Z,X)", h, p, q);
     }
 }

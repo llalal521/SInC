@@ -1,8 +1,6 @@
 package sinc2.kb.compact;
 
-import sinc2.common.Argument;
 import sinc2.kb.KbRelation;
-import sinc2.kb.Record;
 import sinc2.util.ArrayOperation;
 import sinc2.util.LittleEndianIntIO;
 
@@ -10,9 +8,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * This class stores the records in a relation as an integer table.
@@ -25,12 +23,12 @@ public class SimpleRelation extends IntTable {
     public static double MIN_CONSTANT_COVERAGE = 0.25;
     protected static final int BITS_PER_INT = Integer.BYTES * 8;
 
+    /** Relation name */
+    public final String name;
+    /** The ID number of the relation */
+    public final int id;
     /** The flags are used to denote whether a record has been marked entailed */
     protected final int[] entailmentFlags;
-    /** Relation name */
-    protected final String name;
-    /** The ID number of the relation */
-    protected final int id;
 
     /**
      * This method loads a relation file as a 2D array of integers. Please refer to "KbRelation" for the file format.
@@ -99,12 +97,54 @@ public class SimpleRelation extends IntTable {
         }
     }
 
+    public void setAllAsEntailed(int[][] records) {
+        if (0 == records.length || totalCols != records[0].length) {
+            return;
+        }
+        Arrays.sort(records, Comparator.comparingInt(r -> r[queryCol]));
+        int[][] sorted_rows = sortedRowsByCols[queryCol];
+        int[] values = valuesByCols[queryCol];
+        int[] start_offsets = startOffsetsByCols[queryCol];
+        int idx = 0;
+        int idx2 = 0;
+        while (idx < values.length && idx2 < records.length) {
+            int val = values[idx];
+            int val2 = records[idx2][queryCol];
+            if (val < val2) {
+                idx++;
+            } else if (val > val2) {
+                idx2++;
+            } else {    // val == val2
+                final int[] row = records[idx2];
+                final int offset_end = start_offsets[idx+1];
+                for (int offset = start_offsets[idx]; offset < offset_end; offset++) {
+                    if (Arrays.equals(sorted_rows[offset], row)) {
+                        entailmentFlags[offset / BITS_PER_INT] |= 0x1 << (offset % BITS_PER_INT);
+                        break;
+                    }
+                }
+                idx2++;
+            }
+        }
+    }
+
     /**
      * Check whether a record is in the relation and is entailed.
      */
     public boolean isEntailed(int[] record) {
         int idx = whereIs(record);
         return (NOT_FOUND != idx) && 0 != (entailmentFlags[idx / BITS_PER_INT] & (0x1 << (idx % BITS_PER_INT)));
+    }
+
+    /**
+     * Return the total number of entailed records in this relation.
+     */
+    public int totalEntailedRecords() {
+        int cnt = 0;
+        for (int i: entailmentFlags) {
+            cnt += Integer.bitCount(i);
+        }
+        return cnt;
     }
 
     /**
