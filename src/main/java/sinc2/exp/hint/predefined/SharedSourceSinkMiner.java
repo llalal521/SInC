@@ -65,6 +65,9 @@ public class SharedSourceSinkMiner extends TemplateMiner {
                         continue;
                     }
                     Set<Record> head = relations.get(h);
+                    if (head.isEmpty() || 2 != head.iterator().next().args.length) {
+                        continue;
+                    }
                     Set<Record> entailed_head = positiveEntailments.get(h);
 
                     checkThenAdd(

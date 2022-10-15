@@ -34,8 +34,12 @@ public class DualMiner extends TemplateMiner {
 
             /* Match head & check validness */
             for (int h = 0; h < relations.size(); h++) {
+                Set<Record> head = relations.get(h);
+                if (head.isEmpty() || 2 != head.iterator().next().args.length) {
+                    continue;
+                }
                 checkThenAdd(
-                        relations.get(h), positiveEntailments.get(h), entailments, matched_rules,
+                        head, positiveEntailments.get(h), entailments, matched_rules,
                         dualRuleString(h, p, functorNames)
                 );
             }
