@@ -175,7 +175,7 @@ public class IntTable implements Iterable<int[]> {
      * @return Two arrays of matched sub-tables. Each pair of sub-tables, subTables1[i] and subTables2[i], satisfies the
      * above restrictions.
      */
-    static MatchedSubTables matchAsSubTables(IntTable tab1, int col1, IntTable tab2, int col2) {
+    public static MatchedSubTables matchAsSubTables(IntTable tab1, int col1, IntTable tab2, int col2) {
         final int[] values1 = tab1.valuesByCols[col1];
         final int[] values2 = tab2.valuesByCols[col2];
         final int[] start_offsets1 = tab1.startOffsetsByCols[col1];
@@ -184,8 +184,24 @@ public class IntTable implements Iterable<int[]> {
         final int[][] sorted_rows2 = tab2.sortedRowsByCols[col2];
         List<IntTable> sub_tables1 = new ArrayList<>();
         List<IntTable> sub_tables2 = new ArrayList<>();
+        MatchedSubTables result = new MatchedSubTables(sub_tables1, sub_tables2);
+
+        /* Find the starting value */
         int idx1 = 0;
         int idx2 = 0;
+        if (values1[0] > values2[0]) {
+            idx2 = Arrays.binarySearch(values2, values1[0]);
+            if (0 > idx2) {
+                return result;
+            }
+        } else if (values1[0] < values2[0]) {
+            idx1 = Arrays.binarySearch(values1, values2[0]);
+            if (0 > idx1) {
+                return result;
+            }
+        }
+
+        /* Start comparing */
         while (idx1 < values1.length && idx2 < values2.length) {
             int val1 = values1[idx1];
             int val2 = values2[idx2];
@@ -210,7 +226,7 @@ public class IntTable implements Iterable<int[]> {
                 idx2++;
             }
         }
-        return new MatchedSubTables(sub_tables1, sub_tables2);
+        return result;
     }
 
     /**
@@ -267,8 +283,23 @@ public class IntTable implements Iterable<int[]> {
         int[] start_offsets = startOffsetsByCols[target_col];
         int[] start_offsets2 = another.startOffsetsByCols[target_col];
         List<int[]> results = new ArrayList<>();
+
+        /* Find the starting value */
         int idx = 0;
         int idx2 = 0;
+        if (values[0] > values2[0]) {
+            idx2 = Arrays.binarySearch(values2, values[0]);
+            if (0 > idx2) {
+                return new int[0][];
+            }
+        } else if (values[0] < values2[0]) {
+            idx = Arrays.binarySearch(values, values2[0]);
+            if (0 > idx) {
+                return new int[0][];
+            }
+        }
+
+        /* Start comparing */
         while (idx < values.length && idx2 < values2.length) {
             int val = values[idx];
             int val2 = values2[idx2];
@@ -325,8 +356,23 @@ public class IntTable implements Iterable<int[]> {
         final int[][] sorted_rows1 = tab1.sortedRowsByCols[col1];
         final int[][] sorted_rows2 = tab2.sortedRowsByCols[col2];
         Set<Record> result_set = new HashSet<>();
+
+        /* Find the starting value */
         int idx1 = 0;
         int idx2 = 0;
+        if (values1[0] > values2[0]) {
+            idx2 = Arrays.binarySearch(values2, values1[0]);
+            if (0 > idx2) {
+                return new int[0][];
+            }
+        } else if (values1[0] < values2[0]) {
+            idx1 = Arrays.binarySearch(values1, values2[0]);
+            if (0 > idx1) {
+                return new int[0][];
+            }
+        }
+
+        /* Start comparing */
         while (idx1 < values1.length && idx2 < values2.length) {
             int val1 = values1[idx1];
             int val2 = values2[idx2];
@@ -394,8 +440,23 @@ public class IntTable implements Iterable<int[]> {
         final int[][] sorted_rows1 = tab1.sortedRowsByCols[col1];
         final int[][] sorted_rows2 = tab2.sortedRowsByCols[col2];
         HashSet<Record> result_set = new HashSet<>();
+
+        /* Find the starting value */
         int idx1 = 0;
         int idx2 = 0;
+        if (values1[0] > values2[0]) {
+            idx2 = Arrays.binarySearch(values2, values1[0]);
+            if (0 > idx2) {
+                return new int[0][];
+            }
+        } else if (values1[0] < values2[0]) {
+            idx1 = Arrays.binarySearch(values1, values2[0]);
+            if (0 > idx1) {
+                return new int[0][];
+            }
+        }
+
+        /* Start comparing */
         while (idx1 < values1.length && idx2 < values2.length) {
             int val1 = values1[idx1];
             int val2 = values2[idx2];

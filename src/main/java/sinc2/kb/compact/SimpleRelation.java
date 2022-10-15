@@ -83,8 +83,15 @@ public class SimpleRelation extends IntTable {
     public void setAsEntailed(int[] record) {
         int idx = whereIs(record);
         if (NOT_FOUND != idx) {
-            entailmentFlags[idx / BITS_PER_INT] |= 0x1 << (idx % BITS_PER_INT);
+            setEntailmentFlag(idx);
         }
+    }
+
+    /**
+     * Set the idx-th bit corresponding as true.
+     */
+    protected void setEntailmentFlag(int idx) {
+        entailmentFlags[idx / BITS_PER_INT] |= 0x1 << (idx % BITS_PER_INT);
     }
 
     /**
@@ -93,9 +100,17 @@ public class SimpleRelation extends IntTable {
     public void setAsNotEntailed(int[] record) {
         int idx = whereIs(record);
         if (NOT_FOUND != idx) {
-            entailmentFlags[idx / BITS_PER_INT] &= ~(0x1 << (idx % BITS_PER_INT));
+            unsetEntailmentFlag(idx);
         }
     }
+
+    /**
+     * Set the idx-th bit corresponding as false.
+     */
+    protected void unsetEntailmentFlag(int idx) {
+        entailmentFlags[idx / BITS_PER_INT] &= ~(0x1 << (idx % BITS_PER_INT));
+    }
+
 
     public void setAllAsEntailed(int[][] records) {
         if (0 == records.length || totalCols != records[0].length) {
@@ -119,7 +134,7 @@ public class SimpleRelation extends IntTable {
                 final int offset_end = start_offsets[idx+1];
                 for (int offset = start_offsets[idx]; offset < offset_end; offset++) {
                     if (Arrays.equals(sorted_rows[offset], row)) {
-                        entailmentFlags[offset / BITS_PER_INT] |= 0x1 << (offset % BITS_PER_INT);
+                        setEntailmentFlag(offset);
                         break;
                     }
                 }

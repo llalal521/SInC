@@ -71,4 +71,27 @@ class SimpleRelationTest {
         assertFalse(relation.isEntailed(new int[]{1, 2, 3}));
         assertFalse(relation.isEntailed(new int[]{3, 3, 3}));
     }
+
+    @Test
+    void testSetAllEntailment() {
+        int[][] records = new int[55][];
+        for (int i = 0; i < 55; i++) {
+            records[i] = new int[]{i, i, i};
+        }
+        SimpleRelation relation = new SimpleRelation("test", 0, records);
+
+        relation.setAllAsEntailed(new int[][] {
+                new int[]{0, 0, 0},
+                new int[]{1, 1, 1},
+                new int[]{31, 31, 31},
+                new int[]{47, 47, 47},
+                new int[]{1, 2, 3}
+        });
+        assertTrue(relation.isEntailed(new int[]{0, 0, 0}));
+        assertTrue(relation.isEntailed(new int[]{1, 1, 1}));
+        assertTrue(relation.isEntailed(new int[]{31, 31, 31}));
+        assertTrue(relation.isEntailed(new int[]{47, 47, 47}));
+        assertFalse(relation.isEntailed(new int[]{1, 2, 3}));
+        assertFalse(relation.isEntailed(new int[]{3, 3, 3}));
+    }
 }
