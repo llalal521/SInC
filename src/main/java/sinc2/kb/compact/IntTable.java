@@ -35,17 +35,34 @@ import java.util.*;
  */
 public class IntTable implements Iterable<int[]> {
 
-    /** This value indicate that a certain row is not found in the table */
-    public static final int NOT_FOUND = -1;
+    /**
+     * This class is used for comparing int arrays with the same length.
+     */
+    static class IntArrayComparator implements Comparator<int[]> {
+        @Override
+        public int compare(int[] arr1, int[] arr2) {
+            for (int i = 0; i < arr1.length; i++) {
+                int diff = arr1[i] - arr2[i];
+                if (0 != diff) {
+                    return diff;
+                }
+            }
+            return 0;
+        }
+    }
 
-    /** Row references sorted by each column in ascending order */
+    /** The comparator of rows */
+    protected static final IntArrayComparator rowComparator = new IntArrayComparator();
+
+    /** Row references sorted by each column in ascending order. Note that the rows are sorted by each column from the
+     *  last to the first, and the sorting algorithm is stable. Thus, the rows are sorted alphabetically if we look up
+     *  at sortedRowsByCols[0].
+     */
     protected final int[][][] sortedRowsByCols;
     /** The index values of each column */
     protected final int[][] valuesByCols;
     /** The starting offset of each index value */
     protected final int[][] startOffsetsByCols;
-    /** The column that should be used for existential queries */
-    protected final int queryCol;
     /** Total rows in the table */
     protected final int totalRows;
     /** Total cols in the table */
@@ -61,8 +78,6 @@ public class IntTable implements Iterable<int[]> {
         sortedRowsByCols = new int[totalCols][][];
         valuesByCols = new int[totalCols][];
         startOffsetsByCols = new int[totalCols][];
-        int max_values = 0;
-        int max_val_idx = 0;
         for (int col = totalCols - 1; col >= 0; col--) {
             /* Sort by values in the column */
             final int _col = col;
@@ -86,14 +101,7 @@ public class IntTable implements Iterable<int[]> {
             sortedRowsByCols[col] = sorted_rows;
             valuesByCols[col] = ArrayOperation.toArray(values);
             startOffsetsByCols[col] = ArrayOperation.toArray(start_offset);
-
-            /* Find the column with the maximum values, and this column will be used for existence query */
-            if (max_values < valuesByCols[col].length) {
-                max_values = valuesByCols[col].length;
-                max_val_idx = col;
-            }
         }
-        queryCol = max_val_idx;
     }
 
     /**
@@ -105,22 +113,12 @@ public class IntTable implements Iterable<int[]> {
 
     /**
      * Find the offset, w.r.t. the sorted column used for queries, of the row in the table.
-     * @return The offset of the row, or NOT_FOUND if the row is not in the table.
+     *
+     * @return The offset of the row. If the row is not in the table, return a negative value i, such that (-i - 1) is
+     * the index of the first element that is larger than it.
      */
     protected int whereIs(int[] row) {
-        final int[] values = valuesByCols[queryCol];
-        int idx = Arrays.binarySearch(values, row[queryCol]);
-        if (0 > idx) {
-            return NOT_FOUND;
-        }
-        final int[] start_offsets = startOffsetsByCols[queryCol];
-        final int[][] rows = sortedRowsByCols[queryCol];
-        for (int i = start_offsets[idx]; i < start_offsets[idx + 1]; i++) {
-            if (Arrays.equals(row, rows[i])) {
-                return i;
-            }
-        }
-        return NOT_FOUND;
+        return Arrays.binarySearch(sortedRowsByCols[0], row, rowComparator);
     }
 
     @Override
@@ -186,29 +184,17 @@ public class IntTable implements Iterable<int[]> {
         List<IntTable> sub_tables2 = new ArrayList<>();
         MatchedSubTables result = new MatchedSubTables(sub_tables1, sub_tables2);
 
-        /* Find the starting value */
         int idx1 = 0;
         int idx2 = 0;
-        if (values1[0] > values2[0]) {
-            idx2 = Arrays.binarySearch(values2, values1[0]);
-            if (0 > idx2) {
-                return result;
-            }
-        } else if (values1[0] < values2[0]) {
-            idx1 = Arrays.binarySearch(values1, values2[0]);
-            if (0 > idx1) {
-                return result;
-            }
-        }
-
-        /* Start comparing */
         while (idx1 < values1.length && idx2 < values2.length) {
             int val1 = values1[idx1];
             int val2 = values2[idx2];
             if (val1 < val2) {
-                idx1++;
+                idx1 = Arrays.binarySearch(values1, idx1 + 1, values1.length, val2);
+                idx1 = (0 > idx1) ? (-idx1-1) : idx1;
             } else if (val1 > val2) {
-                idx2++;
+                idx2 = Arrays.binarySearch(values2, idx2 + 1, values2.length, val1);
+                idx2 = (0 > idx2) ? (-idx2-1) : idx2;
             } else {    // val1 == val2
                 int start_idx1 = start_offsets1[idx1];
                 int length1 = start_offsets1[idx1+1] - start_idx1;
@@ -238,29 +224,24 @@ public class IntTable implements Iterable<int[]> {
         if (0 == rows.length || totalCols != rows[0].length) {
             return new int[0][];
         }
-        Arrays.sort(rows, Comparator.comparingInt(r -> r[queryCol]));
-        int[][] sorted_rows = sortedRowsByCols[queryCol];
-        int[] values = valuesByCols[queryCol];
-        int[] start_offsets = startOffsetsByCols[queryCol];
+        Arrays.sort(rows, rowComparator);
+        int[][] this_rows = sortedRowsByCols[0];
         List<int[]> results = new ArrayList<>();
         int idx = 0;
         int idx2 = 0;
-        while (idx < values.length && idx2 < rows.length) {
-            int val = values[idx];
-            int val2 = rows[idx2][queryCol];
-            if (val < val2) {
+        while (idx < totalRows && idx2 < rows.length) {
+            int[] row = this_rows[idx];
+            int[] row2 = rows[idx2];
+            int diff = rowComparator.compare(row, row2);
+            if (0 > diff) {
+                idx = Arrays.binarySearch(this_rows, idx + 1, totalRows, row2, rowComparator);
+                idx = (0 > idx) ? (-idx-1) : idx;
+            } else if (0 < diff) {
+                idx2 = Arrays.binarySearch(rows, idx2 + 1, rows.length, row, rowComparator);
+                idx2 = (0 > idx2) ? (-idx2-1) : idx2;
+            } else {    // row == row2
+                results.add(row2);
                 idx++;
-            } else if (val > val2) {
-                idx2++;
-            } else {    // val == val2
-                final int[] row = rows[idx2];
-                final int offset_end = start_offsets[idx+1];
-                for (int offset = start_offsets[idx]; offset < offset_end; offset++) {
-                    if (Arrays.equals(sorted_rows[offset], row)) {
-                        results.add(row);
-                        break;
-                    }
-                }
                 idx2++;
             }
         }
@@ -274,50 +255,24 @@ public class IntTable implements Iterable<int[]> {
         if (totalCols != another.totalCols) {
             return new int[0][];
         }
-        final int target_col = (valuesByCols[queryCol].length >= another.valuesByCols[another.queryCol].length) ?
-                queryCol : another.queryCol;
-        int[][] sorted_rows = sortedRowsByCols[target_col];
-        int[][] sorted_rows2 = another.sortedRowsByCols[target_col];
-        int[] values = valuesByCols[target_col];
-        int[] values2 = another.valuesByCols[target_col];
-        int[] start_offsets = startOffsetsByCols[target_col];
-        int[] start_offsets2 = another.startOffsetsByCols[target_col];
+        int[][] sorted_rows = sortedRowsByCols[0];
+        int[][] sorted_rows2 = another.sortedRowsByCols[0];
         List<int[]> results = new ArrayList<>();
 
-        /* Find the starting value */
         int idx = 0;
         int idx2 = 0;
-        if (values[0] > values2[0]) {
-            idx2 = Arrays.binarySearch(values2, values[0]);
-            if (0 > idx2) {
-                return new int[0][];
-            }
-        } else if (values[0] < values2[0]) {
-            idx = Arrays.binarySearch(values, values2[0]);
-            if (0 > idx) {
-                return new int[0][];
-            }
-        }
-
-        /* Start comparing */
-        while (idx < values.length && idx2 < values2.length) {
-            int val = values[idx];
-            int val2 = values2[idx2];
-            if (val < val2) {
-                idx++;
-            } else if (val > val2) {
-                idx2++;
-            } else {    // val1 == val2
-                final int offset_end = start_offsets[idx+1];
-                final int offset_end2 = start_offsets2[idx2+1];
-                for (int offset = start_offsets[idx]; offset < offset_end; offset++) {
-                    for (int offset2 = start_offsets2[idx2]; offset2 < offset_end2; offset2++) {
-                        if (Arrays.equals(sorted_rows[offset], sorted_rows2[offset2])) {
-                            results.add(sorted_rows[offset]);
-                            break;
-                        }
-                    }
-                }
+        while (idx < totalRows && idx2 < another.totalRows) {
+            int[] row = sorted_rows[idx];
+            int[] row2 = sorted_rows2[idx2];
+            int diff = rowComparator.compare(row, row2);
+            if (0 > diff) {
+                idx = Arrays.binarySearch(sorted_rows, idx + 1, totalRows, row2, rowComparator);
+                idx = (0 > idx) ? (-idx-1) : idx;
+            } else if (0 < diff) {
+                idx2 = Arrays.binarySearch(sorted_rows2, idx2 + 1, another.totalRows, row, rowComparator);
+                idx2 = (0 > idx2) ? (-idx2-1) : idx2;
+            } else {    // row == row2
+                results.add(row2);
                 idx++;
                 idx2++;
             }
@@ -357,29 +312,17 @@ public class IntTable implements Iterable<int[]> {
         final int[][] sorted_rows2 = tab2.sortedRowsByCols[col2];
         Set<Record> result_set = new HashSet<>();
 
-        /* Find the starting value */
         int idx1 = 0;
         int idx2 = 0;
-        if (values1[0] > values2[0]) {
-            idx2 = Arrays.binarySearch(values2, values1[0]);
-            if (0 > idx2) {
-                return new int[0][];
-            }
-        } else if (values1[0] < values2[0]) {
-            idx1 = Arrays.binarySearch(values1, values2[0]);
-            if (0 > idx1) {
-                return new int[0][];
-            }
-        }
-
-        /* Start comparing */
         while (idx1 < values1.length && idx2 < values2.length) {
             int val1 = values1[idx1];
             int val2 = values2[idx2];
             if (val1 < val2) {
-                idx1++;
+                idx1 = Arrays.binarySearch(values1, idx1 + 1, values1.length, val2);
+                idx1 = (0 > idx1) ? (-idx1-1) : idx1;
             } else if (val1 > val2) {
-                idx2++;
+                idx2 = Arrays.binarySearch(values2, idx2 + 1, values2.length, val1);
+                idx2 = (0 > idx2) ? (-idx2-1) : idx2;
             } else {    // val1 == val2, note that repeated elements should be removed
                 final int offset_end1 = start_offsets1[idx1+1];
                 final int offset_end2 = start_offsets2[idx2+1];
@@ -441,29 +384,17 @@ public class IntTable implements Iterable<int[]> {
         final int[][] sorted_rows2 = tab2.sortedRowsByCols[col2];
         HashSet<Record> result_set = new HashSet<>();
 
-        /* Find the starting value */
         int idx1 = 0;
         int idx2 = 0;
-        if (values1[0] > values2[0]) {
-            idx2 = Arrays.binarySearch(values2, values1[0]);
-            if (0 > idx2) {
-                return new int[0][];
-            }
-        } else if (values1[0] < values2[0]) {
-            idx1 = Arrays.binarySearch(values1, values2[0]);
-            if (0 > idx1) {
-                return new int[0][];
-            }
-        }
-
-        /* Start comparing */
         while (idx1 < values1.length && idx2 < values2.length) {
             int val1 = values1[idx1];
             int val2 = values2[idx2];
             if (val1 < val2) {
-                idx1++;
+                idx1 = Arrays.binarySearch(values1, idx1 + 1, values1.length, val2);
+                idx1 = (0 > idx1) ? (-idx1-1) : idx1;
             } else if (val1 > val2) {
-                idx2++;
+                idx2 = Arrays.binarySearch(values2, idx2 + 1, values2.length, val1);
+                idx2 = (0 > idx2) ? (-idx2-1) : idx2;
             } else {    // val1 == val2, note that repeated elements should be removed
                 final int offset_end1 = start_offsets1[idx1+1];
                 final int offset_end2 = start_offsets2[idx2+1];

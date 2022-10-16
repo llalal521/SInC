@@ -82,7 +82,7 @@ public class SimpleRelation extends IntTable {
      */
     public void setAsEntailed(int[] record) {
         int idx = whereIs(record);
-        if (NOT_FOUND != idx) {
+        if (0 <= idx) {
             setEntailmentFlag(idx);
         }
     }
@@ -99,7 +99,7 @@ public class SimpleRelation extends IntTable {
      */
     public void setAsNotEntailed(int[] record) {
         int idx = whereIs(record);
-        if (NOT_FOUND != idx) {
+        if (0 <= idx) {
             unsetEntailmentFlag(idx);
         }
     }
@@ -116,28 +116,23 @@ public class SimpleRelation extends IntTable {
         if (0 == records.length || totalCols != records[0].length) {
             return;
         }
-        Arrays.sort(records, Comparator.comparingInt(r -> r[queryCol]));
-        int[][] sorted_rows = sortedRowsByCols[queryCol];
-        int[] values = valuesByCols[queryCol];
-        int[] start_offsets = startOffsetsByCols[queryCol];
+        Arrays.sort(records, rowComparator);
+        int[][] this_rows = sortedRowsByCols[0];
         int idx = 0;
         int idx2 = 0;
-        while (idx < values.length && idx2 < records.length) {
-            int val = values[idx];
-            int val2 = records[idx2][queryCol];
-            if (val < val2) {
+        while (idx < totalRows && idx2 < records.length) {
+            int[] row = this_rows[idx];
+            int[] row2 = records[idx2];
+            int diff = rowComparator.compare(row, row2);
+            if (0 > diff) {
+                idx = Arrays.binarySearch(this_rows, idx + 1, totalRows, row2, rowComparator);
+                idx = (0 > idx) ? (-idx-1) : idx;
+            } else if (0 < diff) {
+                idx2 = Arrays.binarySearch(records, idx2 + 1, records.length, row, rowComparator);
+                idx2 = (0 > idx2) ? (-idx2-1) : idx2;
+            } else {    // row == row2
+                setEntailmentFlag(idx);
                 idx++;
-            } else if (val > val2) {
-                idx2++;
-            } else {    // val == val2
-                final int[] row = records[idx2];
-                final int offset_end = start_offsets[idx+1];
-                for (int offset = start_offsets[idx]; offset < offset_end; offset++) {
-                    if (Arrays.equals(sorted_rows[offset], row)) {
-                        setEntailmentFlag(offset);
-                        break;
-                    }
-                }
                 idx2++;
             }
         }
@@ -148,7 +143,7 @@ public class SimpleRelation extends IntTable {
      */
     public boolean isEntailed(int[] record) {
         int idx = whereIs(record);
-        return (NOT_FOUND != idx) && 0 != (entailmentFlags[idx / BITS_PER_INT] & (0x1 << (idx % BITS_PER_INT)));
+        return (0 <= idx) && 0 != (entailmentFlags[idx / BITS_PER_INT] & (0x1 << (idx % BITS_PER_INT)));
     }
 
     /**

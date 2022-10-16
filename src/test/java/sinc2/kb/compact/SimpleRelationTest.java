@@ -60,6 +60,7 @@ class SimpleRelationTest {
         assertTrue(relation.isEntailed(new int[]{47, 47, 47}));
         assertFalse(relation.isEntailed(new int[]{1, 2, 3}));
         assertFalse(relation.isEntailed(new int[]{3, 3, 3}));
+        assertEquals(4, relation.totalEntailedRecords());
 
         relation.setAsNotEntailed(new int[]{31, 31, 31});
         relation.setAsNotEntailed(new int[]{47, 47, 47});
@@ -70,6 +71,7 @@ class SimpleRelationTest {
         assertFalse(relation.isEntailed(new int[]{47, 47, 47}));
         assertFalse(relation.isEntailed(new int[]{1, 2, 3}));
         assertFalse(relation.isEntailed(new int[]{3, 3, 3}));
+        assertEquals(2, relation.totalEntailedRecords());
     }
 
     @Test
@@ -93,5 +95,6 @@ class SimpleRelationTest {
         assertTrue(relation.isEntailed(new int[]{47, 47, 47}));
         assertFalse(relation.isEntailed(new int[]{1, 2, 3}));
         assertFalse(relation.isEntailed(new int[]{3, 3, 3}));
+        assertEquals(4, relation.totalEntailedRecords());
     }
 }
