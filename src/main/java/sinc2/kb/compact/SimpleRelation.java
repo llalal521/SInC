@@ -1,16 +1,18 @@
 package sinc2.kb.compact;
 
+import sinc2.kb.KbException;
 import sinc2.kb.KbRelation;
 import sinc2.util.ArrayOperation;
 import sinc2.util.LittleEndianIntIO;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * This class stores the records in a relation as an integer table.
@@ -143,7 +145,16 @@ public class SimpleRelation extends IntTable {
      */
     public boolean isEntailed(int[] record) {
         int idx = whereIs(record);
-        return (0 <= idx) && 0 != (entailmentFlags[idx / BITS_PER_INT] & (0x1 << (idx % BITS_PER_INT)));
+        return (0 <= idx) && 0 != entailment(idx);
+    }
+
+    /**
+     * Get the entailment bit of the idx-th record. The parameter should satisfy: 0 <= idx < totalRows.
+     *
+     * @return 0 if the bit is 0, non-zero otherwise.
+     */
+    protected int entailment(int idx) {
+        return entailmentFlags[idx / BITS_PER_INT] & (0x1 << (idx % BITS_PER_INT));
     }
 
     /**
@@ -175,5 +186,56 @@ public class SimpleRelation extends IntTable {
             promising_constants_by_cols[col] = ArrayOperation.toArray(promising_constants);
         }
         return promising_constants_by_cols;
+    }
+
+    /**
+     * Write the records that are not entailed to a binary file. The format is the same as "KbRelation".
+     *
+     * @param basePath The path to where the relation file should be stored.
+     * @throws KbException File writing failure
+     * @see KbRelation
+     */
+    public void dumpUnentailedRecords(String basePath) throws KbException {
+        try {
+            FileOutputStream fos = new FileOutputStream(KbRelation.getRelFilePath(
+                    basePath, name, totalCols, totalRows
+            ).toFile());
+            int[][] records = sortedRowsByCols[0];
+            for (int idx = 0; idx < totalRows; idx++) {
+                if (0 == entailment(idx)) {
+                    for (int i : records[idx]) {
+                        fos.write(LittleEndianIntIO.leInt2ByteArray(i));
+                    }
+                }
+            }
+            fos.close();
+        } catch (IOException e) {
+            throw new KbException(e);
+        }
+    }
+
+    /**
+     * Add all constants in the relation to the set "constants".
+     */
+    public void collectConstants(Set<Integer> constants) {
+        for (int[] values: valuesByCols) {
+            for (int value: values) {
+                constants.add(value);
+            }
+        }
+    }
+
+    /**
+     * Remove constants of non-entailed records from the set "constants".
+     */
+    public void removeReservedConstants(Set<Integer> constants) {
+        int[][] records = sortedRowsByCols[0];
+        for (int idx = 0; idx < totalRows; idx++) {
+            if (0 == entailment(idx)) {
+                for (int i : records[idx]) {
+                    constants.remove(i);
+                }
+            }
+        }
     }
 }

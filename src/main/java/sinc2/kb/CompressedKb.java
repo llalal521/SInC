@@ -39,9 +39,9 @@ public class CompressedKb extends NumeratedKb {
     /** A regex pattern used to parse the counterexample file name */
     protected static final Pattern COUNTEREXAMPLE_FILE_NAME_PATTERN = Pattern.compile("(.+).ceg$");
     /** The name of the hypothesis file */
-    protected static final String HYPOTHESIS_FILE_NAME = "rules.hyp";
+    public static final String HYPOTHESIS_FILE_NAME = "rules.hyp";
     /** The name of the second mapping file for the supplementary constants */
-    protected static final String SUPPLEMENTARY_CONSTANTS_FILE_NAME = "supplementary.cst";
+    public static final String SUPPLEMENTARY_CONSTANTS_FILE_NAME = "supplementary.cst";
 
     /** The reference to the original KB. The original KB is used for determining the missing constants. */
     protected final NumeratedKb originalKb;

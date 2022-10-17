@@ -5,10 +5,7 @@ import sinc2.kb.NumeratedKb;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * A simple in-memory KB. The values in the KB are converted to integers so each relation in the KB is a 2D table of
@@ -24,7 +21,7 @@ public class SimpleKb {
     /** The name of the KB */
     protected final String name;
     /** The list of relations. The ID of each relation is its index in the list */
-    protected final List<SimpleRelation> relations;
+    protected final SimpleRelation[] relations;
     /** The map from relation names to IDs */
     protected final Map<String, Integer> relationNameMap;
 
@@ -37,7 +34,7 @@ public class SimpleKb {
      */
     public SimpleKb(String name, String basePath) throws IOException {
         this.name = name;
-        this.relations = new ArrayList<>();
+        List<SimpleRelation> relations = new ArrayList<>();
         this.relationNameMap = new HashMap<>();
         File kb_dir = NumeratedKb.getKbPath(name, basePath).toFile();
         String kb_dir_path = kb_dir.getAbsolutePath();
@@ -54,49 +51,50 @@ public class SimpleKb {
                 }
             }
         }
+        this.relations = relations.toArray(new SimpleRelation[0]);
     }
 
     public SimpleRelation getRelation(String name) {
         Integer idx = relationNameMap.get(name);
-        return (null == idx) ? null : relations.get(idx);
+        return (null == idx) ? null : relations[idx];
     }
 
     public SimpleRelation getRelation(int id) {
-        return (id >=0 && id < relations.size()) ? relations.get(id) : null;
+        return (id >=0 && id < relations.length) ? relations[id] : null;
     }
 
     public boolean hasRecord(String relationName, int[] record) {
         Integer idx = relationNameMap.get(relationName);
-        return (null != idx) && relations.get(idx).hasRow(record);
+        return (null != idx) && relations[idx].hasRow(record);
     }
 
     public boolean hasRecord(int relationId, int[] record) {
-        return relationId >= 0 && relationId < relations.size() && relations.get(relationId).hasRow(record);
+        return relationId >= 0 && relationId < relations.length && relations[relationId].hasRow(record);
     }
 
     public void setAsEntailed(String relationName, int[] record) {
         Integer idx = relationNameMap.get(relationName);
         if (null != idx) {
-            relations.get(idx).setAsEntailed(record);
+            relations[idx].setAsEntailed(record);
         }
     }
 
     public void setAsEntailed(int relationId, int[] record) {
-        if (relationId >= 0 && relationId < relations.size()) {
-            relations.get(relationId).setAsEntailed(record);
+        if (relationId >= 0 && relationId < relations.length) {
+            relations[relationId].setAsEntailed(record);
         }
     }
 
     public void setAsNotEntailed(String relationName, int[] record) {
         Integer idx = relationNameMap.get(relationName);
         if (null != idx) {
-            relations.get(idx).setAsNotEntailed(record);
+            relations[idx].setAsNotEntailed(record);
         }
     }
 
     public void setAsNotEntailed(int relationId, int[] record) {
-        if (relationId >= 0 && relationId < relations.size()) {
-            relations.get(relationId).setAsNotEntailed(record);
+        if (relationId >= 0 && relationId < relations.length) {
+            relations[relationId].setAsNotEntailed(record);
         }
     }
 
@@ -110,11 +108,11 @@ public class SimpleKb {
     }
 
     public SimpleRelation[] getRelations() {
-        return relations.toArray(new SimpleRelation[0]);
+        return relations.clone();
     }
 
     public int totalRelations() {
-        return relations.size();
+        return relations.length;
     }
 
     public int totalRecords() {
@@ -123,5 +121,13 @@ public class SimpleKb {
             cnt += relation.totalRows();
         }
         return cnt;
+    }
+
+    public Set<Integer> allConstants() {
+        Set<Integer> constants = new HashSet<>();
+        for (SimpleRelation relation: relations) {
+            relation.collectConstants(constants);
+        }
+        return constants;
     }
 }

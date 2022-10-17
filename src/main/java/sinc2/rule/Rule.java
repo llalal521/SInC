@@ -1197,6 +1197,11 @@ public abstract class Rule {
         return fingerprint;
     }
 
+    /**
+     * Convert the rule to a string under the following structure: (<Eval>)<Structure>.
+     *
+     * @param map The numeration map that translate the numbers to names.
+     */
     public String toString(NumerationMap map) {
         StringBuilder builder = new StringBuilder("(");
         builder.append(eval).append(')');
@@ -1211,6 +1216,10 @@ public abstract class Rule {
         return builder.toString();
     }
 
+    /**
+     * Convert the rule to a string under the following structure: (<Eval>)<Structure>.
+     * Without a numeration map, the integers will not be translated.
+     */
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder("(");
@@ -1226,6 +1235,11 @@ public abstract class Rule {
         return builder.toString();
     }
 
+    /**
+     * Convert only the rule structure to a string.
+     *
+     * @param map The numeration map that translate the numbers to names.
+     */
     public String toDumpString(NumerationMap map) {
         StringBuilder builder = new StringBuilder(structure.get(0).toString(map));
         builder.append(":-");
@@ -1234,6 +1248,22 @@ public abstract class Rule {
             for (int i = 2; i < structure.size(); i++) {
                 builder.append(',');
                 builder.append(structure.get(i).toString(map));
+            }
+        }
+        return builder.toString();
+    }
+
+    /**
+     * Convert only the rule structure to a string. Without a numeration map, the integers will not be translated.
+     */
+    public String toDumpString() {
+        StringBuilder builder = new StringBuilder(structure.get(0).toString());
+        builder.append(":-");
+        if (1 < structure.size()) {
+            builder.append(structure.get(1).toString());
+            for (int i = 2; i < structure.size(); i++) {
+                builder.append(',');
+                builder.append(structure.get(i).toString());
             }
         }
         return builder.toString();
