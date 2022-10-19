@@ -35,9 +35,15 @@ class SimpleCompressedKbTest {
     @Test
     void testCreateAndDump() throws IOException, KbException {
         SimpleKb kb = new SimpleKb(testKbManager.getKbName(), TestKbManager.MEM_DIR);
-        kb.setAsEntailed("family", new int[]{7, 8, 9});
         kb.setAsEntailed("family", new int[]{4, 5, 6});
+        kb.setAsEntailed("family", new int[]{7, 8, 9});
         kb.setAsEntailed("family", new int[]{10, 11, 12});
+        kb.setAsEntailed("father", new int[]{5, 6});
+        kb.setAsEntailed("father", new int[]{8, 9});
+        kb.setAsEntailed("father", new int[]{11, 12});
+        kb.setAsEntailed("mother", new int[]{4, 6});
+        kb.setAsEntailed("mother", new int[]{7, 9});
+        kb.setAsEntailed("mother", new int[]{10, 12});
         SimpleRelation rel_family = kb.getRelation("family");
         SimpleRelation rel_mother = kb.getRelation("mother");
         SimpleRelation rel_father = kb.getRelation("father");
@@ -76,7 +82,7 @@ class SimpleCompressedKbTest {
         ckb.updateSupplementaryConstants();
 
         assertEquals(testKbManager.getCkbName(), ckb.getName());
-        assertEquals(10, ckb.totalNecessaryRecords());
+        assertEquals(4, ckb.totalNecessaryRecords());
         assertEquals(1, ckb.totalFvsRecords());
         assertEquals(3, ckb.totalCounterexamples());
         assertEquals(5, ckb.totalHypothesisSize());
@@ -87,15 +93,10 @@ class SimpleCompressedKbTest {
         String tmp_dir_path = testKbManager.createTmpDir();
         ckb.dump(tmp_dir_path);
         SimpleKb kb2 = new SimpleKb(ckb.getName(), tmp_dir_path);
-        assertTrue(kb2.hasRecord(rel_family.id, new int[]{10, 11, 12}));
-        assertTrue(kb2.hasRecord(rel_family.id, new int[]{13, 14, 15}));
-        assertTrue(kb2.hasRecord(rel_father.id, new int[]{5, 6}));
-        assertTrue(kb2.hasRecord(rel_father.id, new int[]{8, 9}));
-        assertTrue(kb2.hasRecord(rel_father.id, new int[]{11, 12}));
-        assertTrue(kb2.hasRecord(rel_father.id, new int[]{16, 17}));
-        assertTrue(kb2.hasRecord(rel_mother.id, new int[]{4, 6}));
-        assertTrue(kb2.hasRecord(rel_mother.id, new int[]{7, 9}));
-        assertTrue(kb2.hasRecord(rel_mother.id, new int[]{10, 12}));
-        assertTrue(kb2.hasRecord(rel_mother.id, new int[]{13, 15}));
+        assertEquals(4, kb2.totalRecords());
+        assertTrue(kb2.hasRecord("family", new int[]{10, 11, 12}));
+        assertTrue(kb2.hasRecord("family", new int[]{13, 14, 15}));
+        assertTrue(kb2.hasRecord("father", new int[]{16, 17}));
+        assertTrue(kb2.hasRecord("mother", new int[]{13, 15}));
     }
 }

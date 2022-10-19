@@ -42,6 +42,14 @@ public class SimpleKb {
         constants = null;
     }
 
+    /**
+     * Create a KB from a list of relations (a relation here is a list of int arrays)
+     *
+     * @param kbName             The name of the KB
+     * @param relations          The list of relations
+     * @param relNames           The list of names of the corresponding relations
+     * @param calculateConstants Whether all constants are enumerated during construction
+     */
     public SimpleKb(String kbName, int[][][] relations, String[] relNames, boolean calculateConstants) {
         this.name = kbName;
         this.relations = new SimpleRelation[relations.length];
@@ -60,6 +68,14 @@ public class SimpleKb {
         }
     }
 
+    /**
+     * Load a KB from local file system.
+     *
+     * @param name The name of the KB
+     * @param basePath The base path to the dir of the KB
+     * @param calculateConstants Whether all constants are enumerated during construction
+     * @throws IOException
+     */
     public SimpleKb(String name, String basePath, boolean calculateConstants) throws IOException {
         this.name = name;
         this.relationNameMap = new HashMap<>();
@@ -163,10 +179,22 @@ public class SimpleKb {
     }
 
     public Set<Integer> allConstants() {
+        if (null == constants) {
+            constants = new HashSet<>();
+            for (SimpleRelation relation: relations) {
+                relation.collectConstants(constants);
+            }
+        }
         return constants;
     }
 
     public int totalConstants() {
+        if (null == constants) {
+            constants = new HashSet<>();
+            for (SimpleRelation relation: relations) {
+                relation.collectConstants(constants);
+            }
+        }
         return constants.size();
     }
 }

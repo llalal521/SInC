@@ -103,6 +103,57 @@ class SimpleRelationTest {
     }
 
     @Test
+    void testEntailIfNot() {
+        int[][] records = new int[55][];
+        for (int i = 0; i < 55; i++) {
+            records[i] = new int[]{i, i, i};
+        }
+        SimpleRelation relation = new SimpleRelation("test", 0, records);
+
+        relation.setAsEntailed(new int[]{1, 1, 1});
+        assertTrue(relation.entailIfNot(new int[]{0, 0, 0}));
+        assertFalse(relation.entailIfNot(new int[]{0, 0, 0}));
+        assertFalse(relation.entailIfNot(new int[]{1, 1, 1}));
+        assertTrue(relation.entailIfNot(new int[]{31, 31, 31}));
+        assertTrue(relation.entailIfNot(new int[]{47, 47, 47}));
+        assertFalse(relation.entailIfNot(new int[]{1, 2, 3}));
+
+        assertTrue(relation.isEntailed(new int[]{0, 0, 0}));
+        assertTrue(relation.isEntailed(new int[]{1, 1, 1}));
+        assertTrue(relation.isEntailed(new int[]{31, 31, 31}));
+        assertTrue(relation.isEntailed(new int[]{47, 47, 47}));
+        assertFalse(relation.isEntailed(new int[]{1, 2, 3}));
+        assertFalse(relation.isEntailed(new int[]{3, 3, 3}));
+        assertEquals(4, relation.totalEntailedRecords());
+    }
+
+    @Test
+    void testDump() throws KbException, IOException {
+        int[][] rows = new int[][] {
+                new int[]{1, 2, 3},
+                new int[]{4, 5, 6},
+                new int[]{7, 8, 9},
+                new int[]{10, 11, 12},
+                new int[]{13, 14, 15},
+        };
+        SimpleRelation relation = new SimpleRelation("test", 0, rows);
+        relation.setAsEntailed(new int[]{1, 2, 3});
+        relation.setAsEntailed(new int[]{4, 5, 6});
+        relation.setAsEntailed(new int[]{7, 8, 9});
+        relation.dump(TEST_DIR);
+
+        SimpleRelation relation2 = new SimpleRelation(relation.name, 0, 3, 5, TEST_DIR);
+        assertEquals(5, relation2.totalRows);
+        assertTrue(relation2.hasRow(new int[]{1, 2, 3}));
+        assertTrue(relation2.hasRow(new int[]{4, 5, 6}));
+        assertTrue(relation2.hasRow(new int[]{7, 8, 9}));
+        assertTrue(relation2.hasRow(new int[]{10, 11, 12}));
+        assertTrue(relation2.hasRow(new int[]{13, 14, 15}));
+        File rel_file = KbRelation.getRelFilePath(TEST_DIR, "test", 3, 5).toFile();
+        assertTrue(rel_file.delete());
+    }
+
+    @Test
     void testDumpNecessaryRecords() throws KbException, IOException {
         int[][] rows = new int[][] {
                 new int[]{1, 2, 3},
@@ -177,8 +228,9 @@ class SimpleRelationTest {
         relation.setAsEntailed(new int[]{1, 2, 3});
         Set<Integer> constants = new HashSet<>();
         relation.collectConstants(constants);
+        assertEquals(new HashSet<>(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9)), constants);
         relation.removeReservedConstants(constants);
-        assertEquals(new HashSet<>(List.of(4, 5, 6, 7, 8, 9)), constants);
+        assertEquals(new HashSet<>(List.of(1, 2, 3)), constants);
     }
 
     @Test

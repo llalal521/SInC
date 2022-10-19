@@ -230,8 +230,8 @@ public class IntTable implements Iterable<int[]> {
         final int[] idxs = new int[tables.length];
         for (int i = 0; i < tables.length; i++) {
             slices_lists[i] = new ArrayList<>();
-            int col = cols[i];
             IntTable table = tables[i];
+            int col = cols[i];
             values_arr[i] = table.valuesByCols[col];
             start_offsets_arr[i] = table.startOffsetsByCols[col];
             sorted_rows_arr[i] = table.sortedRowsByCols[col];
@@ -243,11 +243,11 @@ public class IntTable implements Iterable<int[]> {
             boolean all_match = true;
             for (int i = 1; i < tables.length; i++) {
                 int val = values_arr[i][idxs[i]];
+                all_match &= val == max_val;
                 if (val > max_val) {
                     max_val = val;
                     max_idx = i;
                 }
-                all_match &= val == max_val;
             }
 
             /* Match */
@@ -260,6 +260,7 @@ public class IntTable implements Iterable<int[]> {
                     int[][] slice = new int[length][];
                     System.arraycopy(sorted_rows_arr[i], start_idx, slice, 0, length);
                     slices_lists[i].add(slice);
+                    idxs[i]++;
                 }
             } else {
                 /* Update idxs */

@@ -276,6 +276,35 @@ class IntTableTest {
     }
 
     @Test
+    void testMatchWithinASingleTable() {
+        int[][] rows = new int[][] {
+                new int[] {1, 5, 1},
+                new int[] {2, 4, 3},
+                new int[] {1, 2, 1},
+                new int[] {3, 3, 3},
+                new int[] {1, 5, 2},
+        };
+        IntTable table = new IntTable(rows);
+        IntTable expected_slice1 = new IntTable(new int[][]{new int[]{1, 5, 1}, new int[]{1, 2, 1}});
+        IntTable expected_slice3 = new IntTable(new int[][]{new int[]{3, 3, 3}});
+        List<int[][]> actual_slices = table.matchSlices(0, 2);
+        assertEquals(2, actual_slices.size());
+        for (int i = 0; i < 2; i++) {
+            IntTable actual_slice = new IntTable(actual_slices.get(i));
+            switch (actual_slice.getAllRows()[0][0]) {
+                case 1:
+                    tableEqual(expected_slice1, actual_slice);
+                    break;
+                case 3:
+                    tableEqual(expected_slice3, actual_slice);
+                    break;
+                default:
+                    fail();
+            }
+        }
+    }
+
+    @Test
     void testIntersectionWithRows() {
         int[][] rows1 = new int[][] {
                 new int[] {1, 5, 3},

@@ -101,7 +101,7 @@ public class SimpleCompressedKb {
      */
     public void updateSupplementaryConstants() {
         /* Find all constants */
-        Set<Integer> lost_constants = originalKb.allConstants();
+        Set<Integer> lost_constants = new HashSet<>(originalKb.allConstants());
 
         /* Remove all occurred arguments*/
         for (int i = 0; i < originalKb.totalRelations(); i++) {

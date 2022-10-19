@@ -157,7 +157,7 @@ public class SimpleRelation extends IntTable {
      */
     public boolean entailIfNot(int[] record) {
         int idx = whereIs(record);
-        if (0 < idx && 0 == entailment(idx)) {
+        if (0 <= idx && 0 == entailment(idx)) {
             setEntailmentFlag(idx);
             return true;
         }
@@ -237,8 +237,9 @@ public class SimpleRelation extends IntTable {
      */
     public void dumpNecessaryRecords(String basePath, List<int[]> fvsRecords) throws KbException {
         try {
+            int dumped_records = totalRows - totalEntailedRecords() + fvsRecords.size();
             FileOutputStream fos = new FileOutputStream(KbRelation.getRelFilePath(
-                    basePath, name, totalCols, totalRows
+                    basePath, name, totalCols, dumped_records
             ).toFile());
             int[][] records = sortedRowsByCols[0];
             for (int idx = 0; idx < totalRows; idx++) {

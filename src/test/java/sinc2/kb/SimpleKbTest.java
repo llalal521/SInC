@@ -26,7 +26,7 @@ class SimpleKbTest {
 
     @Test
     void testLoad() throws IOException {
-        SimpleKb kb = new SimpleKb(testKbManager.getKbName(), testKbManager.getKbName());
+        SimpleKb kb = new SimpleKb(testKbManager.getKbName(), TestKbManager.MEM_DIR);
         assertEquals(testKbManager.getKbName(), kb.getName());
         assertEquals(3, kb.totalRelations());
         assertEquals(12, kb.totalRecords());
