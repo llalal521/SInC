@@ -1,26 +1,27 @@
 package sinc2.exp;
 
 import org.junit.jupiter.api.Test;
-import sinc2.exp.hint.ExperimentException;
-import sinc2.exp.hint.HinterMultiThread;
-import sinc2.util.MultiSet;
 import sinc2.common.Argument;
 import sinc2.common.ParsedArg;
 import sinc2.common.ParsedPred;
 import sinc2.common.Predicate;
+import sinc2.exp.hint.ExperimentException;
+import sinc2.exp.hint.HinterMultiThread;
 import sinc2.kb.KbException;
-import sinc2.kb.NumeratedKb;
-import sinc2.kb.NumerationMap;
 import sinc2.rule.BareRule;
 import sinc2.rule.Fingerprint;
 import sinc2.rule.Rule;
 import sinc2.rule.RuleParseException;
+import sinc2.util.MultiSet;
+import sinc2.util.kb.NumeratedKb;
+import sinc2.util.kb.NumerationMap;
 
 import java.io.*;
 import java.nio.file.Paths;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HinterMultiThreadTest {
 

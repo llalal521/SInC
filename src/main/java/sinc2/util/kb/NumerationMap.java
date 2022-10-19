@@ -1,4 +1,4 @@
-package sinc2.kb;
+package sinc2.util.kb;
 
 import sinc2.util.Pair;
 

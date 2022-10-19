@@ -1,0 +1,48 @@
+package sinc2.kb;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import sinc2.util.kb.TestKbManager;
+
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class SimpleKbTest {
+    static TestKbManager testKbManager;
+
+    @BeforeAll
+    static void setupKb() throws IOException {
+        testKbManager = new TestKbManager();
+    }
+
+    @AfterAll
+    static void removeKb() {
+        testKbManager.cleanUpKb();
+    }
+
+    @Test
+    void testLoad() throws IOException {
+        SimpleKb kb = new SimpleKb(testKbManager.getKbName(), testKbManager.getKbName());
+        assertEquals(testKbManager.getKbName(), kb.getName());
+        assertEquals(3, kb.totalRelations());
+        assertEquals(12, kb.totalRecords());
+        assertEquals(14, kb.totalConstants());
+        assertEquals(new HashSet<>(List.of(4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)), kb.allConstants());
+        kb.hasRecord("family", new int[]{4, 5, 6});
+        kb.hasRecord("family", new int[]{7, 8, 9});
+        kb.hasRecord("family", new int[]{10, 11, 12});
+        kb.hasRecord("family", new int[]{13, 14, 15});
+        kb.hasRecord("mother", new int[]{4, 6});
+        kb.hasRecord("mother", new int[]{7, 9});
+        kb.hasRecord("mother", new int[]{10, 12});
+        kb.hasRecord("mother", new int[]{13, 15});
+        kb.hasRecord("father", new int[]{5, 6});
+        kb.hasRecord("father", new int[]{8, 9});
+        kb.hasRecord("father", new int[]{11, 12});
+        kb.hasRecord("father", new int[]{16, 17});
+    }
+}

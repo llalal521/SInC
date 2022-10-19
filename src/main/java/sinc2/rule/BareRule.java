@@ -1,7 +1,7 @@
 package sinc2.rule;
 
 import sinc2.common.Predicate;
-import sinc2.kb.Record;
+import sinc2.common.Record;
 import sinc2.util.MultiSet;
 
 import java.util.HashSet;
@@ -44,7 +44,7 @@ public class BareRule extends Rule {
         super(structure, fingerprintCache, category2TabuSetMap);
         final int[] relations_in_rule = new int[structure.size()];
         for (int i = 0; i < relations_in_rule.length; i++) {
-            relations_in_rule[i] = structure.get(i).functor;
+            relations_in_rule[i] = structure.get(i).predSymbol;
         }
         returningEvidence = new EvidenceBatch(relations_in_rule);
     }

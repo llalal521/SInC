@@ -1,14 +1,11 @@
 package sinc2.rule;
 
-import sinc2.common.Argument;
-import sinc2.common.ParsedArg;
-import sinc2.common.ParsedPred;
-import sinc2.common.Predicate;
-import sinc2.kb.NumerationMap;
-import sinc2.kb.Record;
+import sinc2.common.*;
+import sinc2.kb.SimpleKb;
 import sinc2.util.ArrayOperation;
 import sinc2.util.DisjointSet;
 import sinc2.util.MultiSet;
+import sinc2.util.kb.NumerationMap;
 
 import java.util.*;
 
@@ -56,7 +53,7 @@ public abstract class Rule {
      * rule := predicate:-body
      * body := ε | predicate | predicate,body
      * predicate := pred_symbol(args)
-     * args := ε | variable | constant | variable,args | constant,args
+     * args := ε | variable | constant | variable,args | constant,args todo: numbers should be included (as numerated constants)
      *
      * A "variable" is defined by the following regular expression: [A-Z][a-zA-z0-9]*
      * A "pred_symbol" and a "constant" are defined by the following regex: [a-z][a-zA-z0-9]*
@@ -559,7 +556,7 @@ public abstract class Rule {
         Set<Predicate> predicate_set = new HashSet<>();
         for (int pred_idx = FIRST_BODY_PRED_IDX; pred_idx < structure.size(); pred_idx++) {
             Predicate body_pred = structure.get(pred_idx);
-            if (head_pred.functor == body_pred.functor) {
+            if (head_pred.predSymbol == body_pred.predSymbol) {
                 for (int arg_idx = 0; arg_idx < head_pred.arity(); arg_idx++) {
                     int head_arg = head_pred.args[arg_idx];
                     int body_arg = body_pred.args[arg_idx];
@@ -651,12 +648,12 @@ public abstract class Rule {
     protected void templateSubsetsHandler(Set<MultiSet<Integer>> subsets, Integer[] template, int depth, int startIdx) {
         if (0 < depth) {
             for (int pred_idx = startIdx; pred_idx < structure.size(); pred_idx++) {
-                template[depth] = structure.get(pred_idx).functor;
+                template[depth] = structure.get(pred_idx).predSymbol;
                 templateSubsetsHandler(subsets, template, depth-1, pred_idx+1);
             }
         } else {
             for (int pred_idx = startIdx; pred_idx < structure.size(); pred_idx++) {
-                template[depth] = structure.get(pred_idx).functor;
+                template[depth] = structure.get(pred_idx).predSymbol;
                 subsets.add(new MultiSet<>(template));
             }
         }
@@ -689,7 +686,7 @@ public abstract class Rule {
     protected void add2TabuSet() {
         final MultiSet<Integer> functor_mset = new MultiSet<>();
         for (int pred_idx = Rule.FIRST_BODY_PRED_IDX; pred_idx < structure.size(); pred_idx++) {
-            functor_mset.add(structure.get(pred_idx).functor);
+            functor_mset.add(structure.get(pred_idx).predSymbol);
         }
         final Set<Fingerprint> tabu_set = category2TabuSetMap.computeIfAbsent(
                 functor_mset, k -> new HashSet<>()
@@ -1218,6 +1215,25 @@ public abstract class Rule {
 
     /**
      * Convert the rule to a string under the following structure: (<Eval>)<Structure>.
+     *
+     * @param kb The KB that translate the numbers to names.
+     */
+    public String toString(SimpleKb kb) {
+        StringBuilder builder = new StringBuilder("(");
+        builder.append(eval).append(')');
+        builder.append(structure.get(0).toString(kb)).append(":-");
+        if (1 < structure.size()) {
+            builder.append(structure.get(1).toString(kb));
+            for (int i = 2; i < structure.size(); i++) {
+                builder.append(',');
+                builder.append(structure.get(i).toString(kb));
+            }
+        }
+        return builder.toString();
+    }
+
+    /**
+     * Convert the rule to a string under the following structure: (<Eval>)<Structure>.
      * Without a numeration map, the integers will not be translated.
      */
     @Override
@@ -1248,6 +1264,24 @@ public abstract class Rule {
             for (int i = 2; i < structure.size(); i++) {
                 builder.append(',');
                 builder.append(structure.get(i).toString(map));
+            }
+        }
+        return builder.toString();
+    }
+
+    /**
+     * Convert only the rule structure to a string.
+     *
+     * @param kb The KB that translate the numbers to names.
+     */
+    public String toDumpString(SimpleKb kb) {
+        StringBuilder builder = new StringBuilder(structure.get(0).toString(kb));
+        builder.append(":-");
+        if (1 < structure.size()) {
+            builder.append(structure.get(1).toString(kb));
+            for (int i = 2; i < structure.size(); i++) {
+                builder.append(',');
+                builder.append(structure.get(i).toString(kb));
             }
         }
         return builder.toString();

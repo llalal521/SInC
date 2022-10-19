@@ -78,7 +78,7 @@ You may change the value of member `LEVEL` in `sinc2.common.DebugLevel` and reco
 ### 1.4 KB Instance with Less Memory Cost
 The `sinc2.kb.NumeratedKb` consumes a lot of memory space to provide a flexible and efficient operation of a KB instance.
 The total memory space are dozens more of the disk space taken by all relation files in a local file system.
-In order to reduce the memory space, you can use the static unmodifiable KB class `sinc2.kb.compact.SimpleKb`.
+In order to reduce the memory space, you can use the static unmodifiable KB class `sinc2.kb.SimpleKb`.
 Instances of this class will take about only 4 times the disk space of all relations files.
 
 ## 2. Use SInC Implementation

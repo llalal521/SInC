@@ -3,9 +3,9 @@ package sinc2.rule;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import sinc2.common.*;
-import sinc2.kb.NumeratedKb;
-import sinc2.kb.NumerationMap;
 import sinc2.util.MultiSet;
+import sinc2.util.kb.NumeratedKb;
+import sinc2.util.kb.NumerationMap;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -15,7 +15,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class FingerprintTest {
 

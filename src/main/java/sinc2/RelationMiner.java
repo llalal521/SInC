@@ -2,9 +2,8 @@ package sinc2;
 
 import sinc2.common.*;
 import sinc2.kb.KbException;
-import sinc2.kb.KbRelation;
-import sinc2.kb.NumeratedKb;
-import sinc2.kb.Record;
+import sinc2.kb.SimpleKb;
+import sinc2.kb.SimpleRelation;
 import sinc2.rule.*;
 import sinc2.util.MultiSet;
 import sinc2.util.graph.GraphNode;
@@ -19,7 +18,7 @@ import java.util.*;
  */
 public abstract class RelationMiner {
     /** The input KB */
-    protected final NumeratedKb kb;
+    protected final SimpleKb kb;
     /** The target relation numeration */
     protected final int targetRelation;
     /** The rule evaluation metric */
@@ -55,7 +54,7 @@ public abstract class RelationMiner {
      * @param logger A logger
      */
     public RelationMiner(
-            NumeratedKb kb, int targetRelation, EvalMetric evalMetric, int beamwidth, double stopCompressionRatio,
+            SimpleKb kb, int targetRelation, EvalMetric evalMetric, int beamwidth, double stopCompressionRatio,
             Map<Predicate, GraphNode<Predicate>> predicate2NodeMap,
             Map<GraphNode<Predicate>, Set<GraphNode<Predicate>>> dependencyGraph,
             PrintWriter logger
@@ -95,7 +94,7 @@ public abstract class RelationMiner {
                     Rule r = beams[i];
                     selectAsBeam(r);
                     if (DebugLevel.VERBOSE <= DebugLevel.LEVEL) {
-                        logger.printf("Extend: %s\n", r.toString(kb.getNumerationMap()));
+                        logger.printf("Extend: %s\n", r.toString(kb));
                         logger.flush();
                     }
 
@@ -184,7 +183,7 @@ public abstract class RelationMiner {
         }
 
         /* Add existing LVs (case 1 and 2) */
-        final Collection<KbRelation> relations = kb.getRelations();
+        final SimpleRelation[] relations = kb.getRelations();
         for (int var_id = 0; var_id < rule.usedLimitedVars(); var_id++) {
             /* Case 1 */
             for (ArgLocation vacant: empty_args) {
@@ -194,11 +193,11 @@ public abstract class RelationMiner {
             }
 
             /* Case 2 */
-            for (KbRelation relation: relations) {
-                for (int arg_idx = 0; arg_idx < relation.getArity(); arg_idx++) {
+            for (SimpleRelation relation: relations) {
+                for (int arg_idx = 0; arg_idx < relation.totalCols(); arg_idx++) {
                     final Rule new_rule = rule.clone();
                     final UpdateStatus update_status = new_rule.cvt1Uv2ExtLv(
-                            relation.getNumeration(), relation.getArity(), arg_idx, var_id
+                            relation.id, relation.totalCols(), arg_idx, var_id
                     );
                     added_candidate_cnt += checkThenAddRule(update_status, new_rule, rule, candidates);
                 }
@@ -212,7 +211,7 @@ public abstract class RelationMiner {
             final Predicate predicate1 = rule.getPredicate(empty_arg_loc_1.predIdx);
 
             /* Case 5 */
-            final int[] const_list = kb.getPromisingConstants(predicate1.functor)[empty_arg_loc_1.argIdx];
+            final int[] const_list = kb.getPromisingConstants(predicate1.predSymbol)[empty_arg_loc_1.argIdx];
             for (int constant: const_list) {
                 final Rule new_rule = rule.clone();
                 final UpdateStatus update_status = new_rule.cvt1Uv2Const(
@@ -233,11 +232,11 @@ public abstract class RelationMiner {
             }
 
             /* Case 4 */
-            for (KbRelation relation: relations) {
-                for (int arg_idx = 0; arg_idx < relation.getArity(); arg_idx++) {
+            for (SimpleRelation relation: relations) {
+                for (int arg_idx = 0; arg_idx < relation.totalCols(); arg_idx++) {
                     final Rule new_rule = rule.clone();
                     final UpdateStatus update_status = new_rule.cvt2Uvs2NewLv(
-                            relation.getNumeration(), relation.getArity(), arg_idx, empty_arg_loc_1.predIdx, empty_arg_loc_1.argIdx
+                            relation.id, relation.totalCols(), arg_idx, empty_arg_loc_1.predIdx, empty_arg_loc_1.argIdx
                     );
                     added_candidate_cnt += checkThenAddRule(update_status, new_rule, rule, candidates);
                 }
@@ -378,14 +377,14 @@ public abstract class RelationMiner {
     public void run() throws KbException {
         Rule rule;
         int covered_facts = 0;
-        final int total_facts = kb.getRelation(targetRelation).totalRecords();
+        final int total_facts = kb.getRelation(targetRelation).totalRows();
         while (!SInC.interrupted && (null != (rule = findRule()))) {
             hypothesis.add(rule);
             updateKbAndDependencyGraph(rule);
             covered_facts += rule.getEval().getPosEtls();
             logger.printf(
                     "Found (Coverage: %.2f%%, %d/%d): %s\n", covered_facts * 100.0 / total_facts, covered_facts, total_facts,
-                    rule.toDumpString(kb.getNumerationMap())
+                    rule.toDumpString(kb)
             );
         }
         logger.println("Done");

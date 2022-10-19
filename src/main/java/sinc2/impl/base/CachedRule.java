@@ -3,9 +3,10 @@ package sinc2.impl.base;
 import sinc2.common.ArgLocation;
 import sinc2.common.Argument;
 import sinc2.common.Predicate;
-import sinc2.kb.KbRelation;
-import sinc2.kb.NumeratedKb;
-import sinc2.kb.Record;
+import sinc2.common.Record;
+import sinc2.kb.IntTable;
+import sinc2.kb.SimpleKb;
+import sinc2.kb.SimpleRelation;
 import sinc2.rule.*;
 import sinc2.util.MultiSet;
 
@@ -42,11 +43,12 @@ public class CachedRule extends Rule {
     }
 
     /** The original KB */
-    protected final NumeratedKb kb;
+    protected final SimpleKb kb;
     /** The cache for the positive entailments (E+-cache) */
-    protected List<CacheEntry> posCache;
-    /** The cache for all the entailments (E-cache) */
-    protected List<CacheEntry> allCache;
+    protected List<List<CompliedBlock>> posCache;
+    /** The cache for all the entailments (E-cache). the first element should be null to keep the same length as the
+     *  E+-cache, as the head should be removed in E-cache */
+    protected List<List<CompliedBlock>> allCache;
     /** The list of a PLV in the body. This list should always be of the same length as "limitedVarCnts" */
     protected final List<PlvLoc> plvList = new ArrayList<>();
 
@@ -61,28 +63,24 @@ public class CachedRule extends Rule {
      */
     public CachedRule(
             int headRelNum, int arity, Set<Fingerprint> fingerprintCache,
-            Map<MultiSet<Integer>, Set<Fingerprint>> category2TabuSetMap, NumeratedKb kb
+            Map<MultiSet<Integer>, Set<Fingerprint>> category2TabuSetMap, SimpleKb kb
     ) {
         super(headRelNum, arity, fingerprintCache, category2TabuSetMap);
         this.kb = kb;
 
         /* Initialize the E+-cache */
-        KbRelation head_relation = kb.getRelation(headRelNum);
-        final CompliedBlock cb_head = new CompliedBlock(headRelNum, new int[arity], head_relation.getRecords());
-        final List<CompliedBlock> pos_init_cbs = new ArrayList<>();
-        pos_init_cbs.add(cb_head);
-        final List<Map<Integer, Set<Record>>[]> pos_init_idxs = new ArrayList<>();
-        pos_init_idxs.add(head_relation.getArgumentIndices());
+        SimpleRelation head_relation = kb.getRelation(headRelNum);
+        final CompliedBlock cb_head = new CompliedBlock(headRelNum, new int[arity], head_relation.getAllRows(), head_relation);
+        final List<CompliedBlock> pos_init_entry = new ArrayList<>();
+        pos_init_entry.add(cb_head);
         posCache = new ArrayList<>();
-        posCache.add(new CacheEntry(pos_init_cbs, pos_init_idxs));
+        posCache.add(pos_init_entry);
 
         /* Initialize the E-cache */
-        final List<CompliedBlock> all_init_cbs = new ArrayList<>();
-        all_init_cbs.add(null);  // Keep the same length of the cache entries
-        final List<Map<Integer, Set<Record>>[]> all_init_idxs = new ArrayList<>();
-        all_init_idxs.add(new Map[0]);  // The first element should be made non-NULL
+        final List<CompliedBlock> all_init_entry = new ArrayList<>();
+        all_init_entry.add(null);  // Keep the same length of the cache entries
         allCache = new ArrayList<>();
-        allCache.add(new CacheEntry(all_init_cbs, all_init_idxs));
+        allCache.add(all_init_entry);
 
         this.eval = calculateEval();
     }
@@ -96,7 +94,7 @@ public class CachedRule extends Rule {
      */
     public CachedRule(
             List<Predicate> structure, Set<Fingerprint> fingerprintCache,
-            Map<MultiSet<Integer>, Set<Fingerprint>> category2TabuSetMap, NumeratedKb kb
+            Map<MultiSet<Integer>, Set<Fingerprint>> category2TabuSetMap, SimpleKb kb
     ) {
         super(structure, fingerprintCache, category2TabuSetMap);
         this.kb = kb;
@@ -136,7 +134,7 @@ public class CachedRule extends Rule {
                 if (null == const_restriction_lists[HEAD_PRED_IDX]) {
                     const_restriction_lists[HEAD_PRED_IDX] = new ArrayList<>();
                 }
-                const_restriction_lists[HEAD_PRED_IDX].add(new ConstRestriction(arg_idx, argument));
+                const_restriction_lists[HEAD_PRED_IDX].add(new ConstRestriction(arg_idx, Argument.decode(argument)));
             }
         }
         for (int pred_idx = FIRST_BODY_PRED_IDX; pred_idx < structure.size(); pred_idx++) {
@@ -158,7 +156,7 @@ public class CachedRule extends Rule {
                     if (null == const_restriction_lists[pred_idx]) {
                         const_restriction_lists[pred_idx] = new ArrayList<>();
                     }
-                    const_restriction_lists[pred_idx].add(new ConstRestriction(arg_idx, argument));
+                    const_restriction_lists[pred_idx].add(new ConstRestriction(arg_idx, Argument.decode(argument)));
                 }
             }
         }
@@ -176,26 +174,24 @@ public class CachedRule extends Rule {
 
         /* Construct the initial cache entry (where only constant restrictions are applied) */
         /* If any of the compliance sets is empty, the cache entry will be NULL */
-        List<CompliedBlock> initial_cbs = new ArrayList<>();
-        List<Map<Integer, Set<Record>>[]> inital_indices_list = new ArrayList<>();
+        List<CompliedBlock> initial_entry = new ArrayList<>();
         for (int pred_idx = HEAD_PRED_IDX; pred_idx < const_restriction_lists.length; pred_idx++) {
             Predicate predicate = this.structure.get(pred_idx);
-            KbRelation relation = kb.getRelation(predicate.functor);
+            SimpleRelation relation = kb.getRelation(predicate.predSymbol);
             List<ConstRestriction> const_restrictions = const_restriction_lists[pred_idx];
-            Set<Record> records_in_relation = relation.getRecords();
-            if (records_in_relation.isEmpty()) {
-                initial_cbs = null;
+            int[][] records_in_relation = relation.getAllRows();
+            if (0 == records_in_relation.length) {
+                initial_entry = null;
                 break;
             }
             if (null == const_restrictions) {
-                initial_cbs.add(new CompliedBlock(predicate.functor, new int[predicate.arity()], records_in_relation));
-                inital_indices_list.add(relation.getArgumentIndices());
+                initial_entry.add(new CompliedBlock(predicate.predSymbol, new int[predicate.arity()], records_in_relation, relation));
             } else {
-                Set<Record> records_complied_to_constants = new HashSet<>();
-                for (Record record : records_in_relation) {
+                List<int[]> records_complied_to_constants = new ArrayList<>();
+                for (int[] record : records_in_relation) {
                     boolean match_all = true;
                     for (ConstRestriction restriction: const_restrictions) {
-                        if (restriction.constantArg != record.args[restriction.argIdx]) {
+                        if (restriction.constantArg != record[restriction.argIdx]) {
                             match_all = false;
                             break;
                         }
@@ -205,7 +201,7 @@ public class CachedRule extends Rule {
                     }
                 }
                 if (records_complied_to_constants.isEmpty()) {
-                    initial_cbs = null;
+                    initial_entry = null;
                     break;
                 }
 
@@ -213,33 +209,30 @@ public class CachedRule extends Rule {
                 for (ConstRestriction restriction: const_restrictions) {
                     par[restriction.argIdx] = restriction.constantArg;
                 }
-                initial_cbs.add(new CompliedBlock(predicate.functor, par, records_complied_to_constants));
-                inital_indices_list.add(null);
+                initial_entry.add(new CompliedBlock(predicate.predSymbol, par, records_complied_to_constants.toArray(new int[0][])));
             }
         }
-        if (null == initial_cbs) {
+        if (null == initial_entry) {
             return;
         }
 
         /* Build the caches */
         /* Build "allCache" first */
-        CacheEntry complete_init_entry = new CacheEntry(initial_cbs, inital_indices_list);
-        CacheEntry init_entry_without_head = new CacheEntry(complete_init_entry);
-        init_entry_without_head.entry.set(HEAD_PRED_IDX, null);
-        init_entry_without_head.argIndicesList.set(HEAD_PRED_IDX, new Map[0]);
+        List<CompliedBlock> init_entry_without_head = new ArrayList<>(initial_entry);
+        init_entry_without_head.set(HEAD_PRED_IDX, null);
         allCache.add(init_entry_without_head);
-        for (int vid = 0; vid < lv_id_locs_without_head.length; vid++) {
-            if (null != lv_id_locs_without_head[vid]) {
-                allCache = splitCacheEntriesByLvs(allCache, lv_id_locs_without_head[vid]);
+        for (List<ArgLocation> arg_locations : lv_id_locs_without_head) {
+            if (null != arg_locations) {
+                allCache = splitCacheEntriesByLvs(allCache, arg_locations);
             }
         }
 
         /* Build "posCache" */
-        /* Todo: the "posCache" can be built based on the result of "allCache" but the implementation is to complicated. Optimize in a future enhancement. */
-        posCache.add(complete_init_entry);
-        for (int vid = 0; vid < lv_id_locs_with_head.length; vid++) {
-            if (null != lv_id_locs_with_head[vid]) {
-                posCache = splitCacheEntriesByLvs(posCache, lv_id_locs_with_head[vid]);
+        /* Todo: the "posCache" can be built based on the result of "allCache" but the implementation is too complicated. Optimize in a future enhancement. */
+        posCache.add(initial_entry);
+        for (List<ArgLocation> arg_locations : lv_id_locs_with_head) {
+            if (null != arg_locations) {
+                posCache = splitCacheEntriesByLvs(posCache, arg_locations);
             }
         }
     }
@@ -247,100 +240,85 @@ public class CachedRule extends Rule {
     /**
      * Update the cache according to a list of arguments that are assigned by the same LV.
      * No need to copy cache entries in this method.
+     * All indices in DBs should be presented.
      *
      * @param cache The cache
      * @param lvLocations The locations of the arguments
      * @return A new list of cache entries complied with the LV restriction
      */
-    protected List<CacheEntry> splitCacheEntriesByLvs(List<CacheEntry> cache, List<ArgLocation> lvLocations) {
+    protected List<List<CompliedBlock>> splitCacheEntriesByLvs(
+            List<List<CompliedBlock>> cache, List<ArgLocation> lvLocations
+    ) {
         /* Group arguments indices in predicates */
         final int predicates_in_rule = structure.size();
         List<Integer>[] lv_locs_in_preds = new List[predicates_in_rule];  // Predicate index as the array index
+        int preds_with_lvs = 0;
         for (ArgLocation lv_loc: lvLocations) {
             if (null == lv_locs_in_preds[lv_loc.predIdx]) {
                 lv_locs_in_preds[lv_loc.predIdx] = new ArrayList<>();
+                preds_with_lvs++;
             }
             lv_locs_in_preds[lv_loc.predIdx].add(lv_loc.argIdx);
         }
-
-        /* Create new cache by splitting entries */
-        List<CacheEntry> new_cache = new ArrayList<>();
-        for (CacheEntry cache_entry: cache) {
-            /* Build a value index for each predicate where the variable locates */
-            Map<Integer, Set<Record>>[] lv_indices = new Map[predicates_in_rule]; // Predicate index as the array index
-            int min_index_entries = Integer.MAX_VALUE;
-            int min_index_idx = -1;
-            for (int pred_idx = HEAD_PRED_IDX; pred_idx < predicates_in_rule; pred_idx++) {
-                List<Integer> lv_arg_idxs = lv_locs_in_preds[pred_idx];
-                if (null != lv_arg_idxs) {
-                    if (1 == lv_arg_idxs.size()) {
-                        /* A single lv is in the predicate */
-                        final int arg_idx = lv_arg_idxs.get(0);
-                        Map<Integer, Set<Record>>[] cb_indices_arr = cache_entry.argIndicesList.get(pred_idx);
-                        if (null == cb_indices_arr) {
-                            CompliedBlock cb = cache_entry.entry.get(pred_idx);
-                            Map<Integer, Set<Record>> cb_index = new HashMap<>();
-                            for (Record record : cb.complSet) {
-                                cb_index.computeIfAbsent(record.args[arg_idx], k -> new HashSet<>()).add(record);
-                            }
-                            lv_indices[pred_idx] = cb_index;
-                        } else {
-                            lv_indices[pred_idx] = cb_indices_arr[arg_idx];
-                        }
-                    } else {
-                        /* Build index according to multiple arguments assigned by the LV */
-                        CompliedBlock cb = cache_entry.entry.get(pred_idx);
-                        Map<Integer, Set<Record>> cb_index = new HashMap<>();
-                        for (Record record: cb.complSet) {
+        int[] pred_idxs_with_lvs = new int[preds_with_lvs];
+        int[] var_arg_idx_in_pred = new int[preds_with_lvs];
+        int pred_idx_with_lv = 0;
+        for (int pred_idx = HEAD_PRED_IDX; pred_idx < predicates_in_rule; pred_idx++) {
+            List<Integer> lv_arg_idxs = lv_locs_in_preds[pred_idx];
+            if (null != lv_arg_idxs) {
+                pred_idxs_with_lvs[pred_idx_with_lv] = pred_idx;
+                var_arg_idx_in_pred[pred_idx_with_lv] = lv_arg_idxs.get(0);
+                pred_idx_with_lv++;
+                if (1 < lv_arg_idxs.size()) {
+                    /* Filter the CBs in entries */
+                    for (List<CompliedBlock> entry : cache) {
+                        CompliedBlock cb = entry.get(pred_idx);
+                        List<int[]> new_comp_list = new ArrayList<>();
+                        for (int[] record : cb.complSet) {
                             boolean all_matched = true;
-                            final int argument = record.args[lv_arg_idxs.get(0)];
+                            final int argument = record[lv_arg_idxs.get(0)];
                             for (int i = 1; i < lv_arg_idxs.size(); i++) {
-                                if (argument != record.args[lv_arg_idxs.get(i)]) {
+                                if (argument != record[lv_arg_idxs.get(i)]) {
                                     all_matched = false;
                                     break;
                                 }
                             }
                             if (all_matched) {
-                                cb_index.computeIfAbsent(argument, k -> new HashSet<>()).add(record);
+                                new_comp_list.add(record);
                             }
                         }
-                        lv_indices[pred_idx] = cb_index;
-                    }
-                    if (lv_indices[pred_idx].size() < min_index_entries) {
-                        min_index_entries = lv_indices[pred_idx].size();
-                        min_index_idx = pred_idx;
+                        int[][] new_comp_list_rows = new_comp_list.toArray(new int[0][]);
+                        entry.set(pred_idx, new CompliedBlock(
+                                cb.relNum, cb.partAsgnRecord, new_comp_list_rows, new IntTable(new_comp_list_rows)
+                        ));
                     }
                 }
             }
+        }
 
-            /* Select shared values */
-            List<Integer> shared_args = new ArrayList<>();
-            for (Integer argument: lv_indices[min_index_idx].keySet()) {
-                boolean all_match = true;
-                for (Map<Integer, Set<Record>> cb_index: lv_indices) {
-                    if (null != cb_index && !cb_index.containsKey(argument)) {
-                        all_match = false;
-                        break;
-                    }
-                }
-                if (all_match) {
-                    shared_args.add(argument);
-                }
+        /* Create new cache by splitting entries */
+        List<List<CompliedBlock>> new_cache = new ArrayList<>();
+        for (List<CompliedBlock> cache_entry: cache) {
+            /* Match values */
+            IntTable[] tables = new IntTable[preds_with_lvs];
+            for (int i = 0; i < pred_idxs_with_lvs.length; i++) {
+                int pred_idx = pred_idxs_with_lvs[i];
+                tables[i] = cache_entry.get(pred_idx).indices;
             }
-
-            /* Split cache entries via shared values */
-            for (Integer shared_arg: shared_args) {
-                CacheEntry new_entry = new CacheEntry(cache_entry);
-                for (int pred_idx = HEAD_PRED_IDX; pred_idx < predicates_in_rule; pred_idx++) {
-                    if (null != lv_indices[pred_idx]) {
-                        CompliedBlock cb = cache_entry.entry.get(pred_idx);
-                        CompliedBlock new_cb = new CompliedBlock(cb.relNum, cb.partAsgnRecord.clone(), lv_indices[pred_idx].get(shared_arg));
-                        for (int arg_idx : lv_locs_in_preds[pred_idx]) {
-                            new_cb.partAsgnRecord[arg_idx] = shared_arg;
-                        }
-                        new_entry.entry.set(pred_idx, new_cb);
-                        new_entry.argIndicesList.set(pred_idx, null);
+            List<int[][]>[] slices = IntTable.matchSlices(tables, var_arg_idx_in_pred);
+            int matched_values = slices[0].size();
+            for (int i = 0; i < matched_values; i++) {
+                List<CompliedBlock> new_entry = new ArrayList<>(cache_entry);
+                int shared_arg = slices[0].get(i)[0][var_arg_idx_in_pred[0]];
+                for (int j = 0; j < pred_idxs_with_lvs.length; j++) {
+                    int pred_idx = pred_idxs_with_lvs[j];
+                    CompliedBlock cb = cache_entry.get(pred_idx);
+                    int[] new_par = cb.partAsgnRecord.clone();
+                    for (int arg_idx : lv_locs_in_preds[pred_idx]) {
+                        new_par[arg_idx] = shared_arg;
                     }
+                    int[][] slice = slices[j].get(i);
+                    new_entry.set(pred_idx, new CompliedBlock(cb.relNum, new_par, slice, new IntTable(slice)));
                 }
                 new_cache.add(new_entry);
             }
@@ -374,15 +352,15 @@ public class CachedRule extends Rule {
     @Override
     protected double recordCoverage() {
         final Set<Record> entailed_head = new HashSet<>();
-        final KbRelation target_relation = kb.getRelation(getHead().functor);
-        for (final CacheEntry cache_entry: posCache) {
-            for (Record record: cache_entry.entry.get(HEAD_PRED_IDX).complSet) {
-                if (!target_relation.recordIsEntailed(record)) {
-                    entailed_head.add(record);
+        final SimpleRelation target_relation = kb.getRelation(getHead().predSymbol);
+        for (final List<CompliedBlock> cache_entry: posCache) {
+            for (int[] record: cache_entry.get(HEAD_PRED_IDX).complSet) {
+                if (!target_relation.isEntailed(record)) {
+                    entailed_head.add(new Record(record));
                 }
             }
         }
-        return ((double) entailed_head.size()) / target_relation.totalRecords();
+        return ((double) entailed_head.size()) / target_relation.totalRows();
     }
 
     /**
@@ -419,11 +397,11 @@ public class CachedRule extends Rule {
         if (noPlvInRule()) {
             /* Count all combinations of body GVs */
             final Set<Record> body_gv_bindings = new HashSet<>();
-            for (final CacheEntry cache_entry: allCache) {
+            for (final List<CompliedBlock> cache_entry: allCache) {
                 final int[] binding = new int[body_gv_locs.size()];
                 for (int i = 0; i < body_gv_locs.size(); i++) {
                     final ArgLocation loc = body_gv_locs.get(i);
-                    binding[i] = cache_entry.entry.get(loc.predIdx).partAsgnRecord[loc.argIdx];
+                    binding[i] = cache_entry.get(loc.predIdx).partAsgnRecord[loc.argIdx];
                 }
                 body_gv_bindings.add(new Record(binding));
             }
@@ -444,12 +422,12 @@ public class CachedRule extends Rule {
 
             /* Count the number of the combinations of GVs and PLVs */
             final Map<Record, Set<Record>> body_gv_binding_2_plv_bindings = new HashMap<>();
-            for (final CacheEntry cache_entry: allCache) {
+            for (final List<CompliedBlock> cache_entry: allCache) {
                 /* Find the GV combination */
                 final int[] gv_binding = new int[body_gv_locs.size()];
                 for (int i = 0; i < body_gv_locs.size(); i++) {
                     final ArgLocation loc = body_gv_locs.get(i);
-                    gv_binding[i] = cache_entry.entry.get(loc.predIdx).partAsgnRecord[loc.argIdx];
+                    gv_binding[i] = cache_entry.get(loc.predIdx).partAsgnRecord[loc.argIdx];
                 }
 
                 /* Find the combinations of PLV bindings */
@@ -463,10 +441,10 @@ public class CachedRule extends Rule {
                         final List<Integer> plv_arg_idxs = plv_arg_index_lists[body_pred_idx];
                         if (null != plv_arg_idxs) {
                             final Set<Record> plv_bindings = new HashSet<>();
-                            for (Record cs_record : cache_entry.entry.get(body_pred_idx).complSet) {
+                            for (int[] cs_record : cache_entry.get(body_pred_idx).complSet) {
                                 final int[] plv_binding_within_pred = new int[plv_arg_idxs.size()];
                                 for (int j = 0; j < plv_binding_within_pred.length; j++) {
-                                    plv_binding_within_pred[j] = cs_record.args[plv_arg_idxs.get(j)];
+                                    plv_binding_within_pred[j] = cs_record[plv_arg_idxs.get(j)];
                                 }
                                 plv_bindings.add(new Record(plv_binding_within_pred));
                             }
@@ -487,31 +465,31 @@ public class CachedRule extends Rule {
             }
         }
         final double all_entails = body_gv_plv_bindings_cnt * Math.pow(
-                kb.getAllConstants().size(), head_uv_cnt + head_only_lv_args.size()
+                kb.totalConstants(), head_uv_cnt + head_only_lv_args.size()
         );
         
         /* Count for the total and new positive entailments */
         final Set<Record> newly_proved = new HashSet<>();
         final Set<Record> already_proved = new HashSet<>();
-        final KbRelation target_relation = kb.getRelation(getHead().functor);
+        final SimpleRelation target_relation = kb.getRelation(getHead().predSymbol);
         if (0 == head_uv_cnt) {
             /* No UV in the head, PAR is the record */
-            for (final CacheEntry cache_entry : posCache) {
-                Record record = new Record(cache_entry.entry.get(HEAD_PRED_IDX).partAsgnRecord);
-                if (target_relation.recordIsEntailed(record)) {
-                    already_proved.add(record);
+            for (final List<CompliedBlock> cache_entry : posCache) {
+                int[] record = cache_entry.get(HEAD_PRED_IDX).partAsgnRecord;
+                if (target_relation.isEntailed(record)) {
+                    already_proved.add(new Record(record));
                 } else {
-                    newly_proved.add(record);
+                    newly_proved.add(new Record(record));
                 }
             }
         } else {
             /* UVs in the head, find all records in the CSs */
-            for (final CacheEntry cache_entry: posCache) {
-                for (Record record: cache_entry.entry.get(HEAD_PRED_IDX).complSet) {
-                    if (target_relation.recordIsEntailed(record)) {
-                        already_proved.add(record);
+            for (final List<CompliedBlock> cache_entry: posCache) {
+                for (int[] record: cache_entry.get(HEAD_PRED_IDX).complSet) {
+                    if (target_relation.isEntailed(record)) {
+                        already_proved.add(new Record(record));
                     } else {
-                        newly_proved.add(record);
+                        newly_proved.add(new Record(record));
                     }
                 }
             }
@@ -576,11 +554,15 @@ public class CachedRule extends Rule {
      * Update the cache indices before specialization. E.g., right after the rule is selected as one of the beams.
      */
     public void updateCacheIndices() {
-        for (CacheEntry entry: posCache) {
-            entry.updateIndices();
+        for (List<CompliedBlock> entry: posCache) {
+            for (CompliedBlock cb: entry) {
+                cb.buildIndices();
+            }
         }
-        for (CacheEntry entry: allCache) {
-            entry.updateIndices();
+        for (List<CompliedBlock> entry: allCache) {
+            for (CompliedBlock cb: entry) {
+                cb.buildIndices();
+            }
         }
     }
 
@@ -675,7 +657,7 @@ public class CachedRule extends Rule {
                     found = true;
 
                     /* Append + Split */
-                    List<CacheEntry> tmp_cache = appendCacheEntries(posCache, newPredicate.functor);
+                    List<List<CompliedBlock>> tmp_cache = appendCacheEntries(posCache, newPredicate.predSymbol);
                     posCache = splitCacheEntries(tmp_cache, structure.size() - 1, argIdx, pred_idx, arg_idx);
                     break;
                 }
@@ -695,7 +677,7 @@ public class CachedRule extends Rule {
         if (null != plv_loc) {
             /* Match the found PLV, append then split */
             plvList.set(varId, null);
-            List<CacheEntry> tmp_cache = appendCacheEntries(allCache, newPredicate.functor);
+            List<List<CompliedBlock>> tmp_cache = appendCacheEntries(allCache, newPredicate.predSymbol);
             allCache = splitCacheEntries(
                     tmp_cache, structure.size() - 1, argIdx, plv_loc.bodyPredIdx, plv_loc.bodyArgIdx
             );
@@ -712,7 +694,7 @@ public class CachedRule extends Rule {
                         found = true;
 
                         /* Append + Split */
-                        List<CacheEntry> tmp_cache = appendCacheEntries(allCache, newPredicate.functor);
+                        List<List<CompliedBlock>> tmp_cache = appendCacheEntries(allCache, newPredicate.predSymbol);
                         allCache = splitCacheEntries(tmp_cache, structure.size() - 1, argIdx, pred_idx, arg_idx);
                         break;
                     }
@@ -728,7 +710,7 @@ public class CachedRule extends Rule {
                         break;
                     }
                 }
-                allCache = appendCacheEntries(allCache, newPredicate.functor);
+                allCache = appendCacheEntries(allCache, newPredicate.predSymbol);
             }
         }
         return UpdateStatus.NORMAL;
@@ -778,7 +760,7 @@ public class CachedRule extends Rule {
     @Override
     protected UpdateStatus cvt2Uvs2NewLvHandlerPreCvg(Predicate newPredicate, int argIdx1, int predIdx2, int argIdx2) {
         /* Append + Split */
-        List<CacheEntry> tmp_cache = appendCacheEntries(posCache, newPredicate.functor);
+        List<List<CompliedBlock>> tmp_cache = appendCacheEntries(posCache, newPredicate.predSymbol);
         posCache = splitCacheEntries(tmp_cache, structure.size() - 1, argIdx1, predIdx2, argIdx2);
         return UpdateStatus.NORMAL;
     }
@@ -793,11 +775,11 @@ public class CachedRule extends Rule {
         if (HEAD_PRED_IDX == predIdx2) {   // One is the head and the other is not
             /* The new variable is a PLV, append */
             plvList.add(new PlvLoc(structure.size() - 1, argIdx1, argIdx2));
-            allCache = appendCacheEntries(allCache, newPredicate.functor);
+            allCache = appendCacheEntries(allCache, newPredicate.predSymbol);
         } else {    // Both are in the body
             /* The new variable is not a PLV, append then split */
             plvList.add(null);
-            List<CacheEntry> tmp_cache = appendCacheEntries(allCache, newPredicate.functor);
+            List<List<CompliedBlock>> tmp_cache = appendCacheEntries(allCache, newPredicate.predSymbol);
             allCache = splitCacheEntries(tmp_cache, structure.size() - 1, argIdx1, predIdx2, argIdx2);
         }
         return UpdateStatus.NORMAL;
@@ -860,14 +842,13 @@ public class CachedRule extends Rule {
      * @param relNum The numeration of the appended relation
      * @return A new cache containing all updated cache entries
      */
-    protected List<CacheEntry> appendCacheEntries(List<CacheEntry> cache, int relNum) {
-        KbRelation relation = kb.getRelation(relNum);
-        CompliedBlock cb = new CompliedBlock(relNum, new int[relation.getArity()], relation.getRecords());
-        List<CacheEntry> new_cache = new ArrayList<>();
-        for (CacheEntry entry: cache) {
-            CacheEntry new_entry = new CacheEntry(entry);
-            new_entry.entry.add(cb);
-            new_entry.argIndicesList.add(relation.getArgumentIndices());
+    protected List<List<CompliedBlock>> appendCacheEntries(List<List<CompliedBlock>> cache, int relNum) {
+        SimpleRelation relation = kb.getRelation(relNum);
+        CompliedBlock cb = new CompliedBlock(relNum, new int[relation.totalCols()], relation.getAllRows(), relation);
+        List<List<CompliedBlock>> new_cache = new ArrayList<>();
+        for (List<CompliedBlock> entry: cache) {
+            List<CompliedBlock> new_entry = new ArrayList<>(entry);
+            new_entry.add(cb);
             new_cache.add(new_entry);
         }
         return new_cache;
@@ -885,59 +866,44 @@ public class CachedRule extends Rule {
      * @param argIdx2 The argument index in the 2nd predicate
      * @return A new cache containing all updated cache entries
      */
-    protected List<CacheEntry> splitCacheEntries(
-            List<CacheEntry> cache, int predIdx1, int argIdx1, int predIdx2, int argIdx2
+    protected List<List<CompliedBlock>> splitCacheEntries(
+            List<List<CompliedBlock>> cache, int predIdx1, int argIdx1, int predIdx2, int argIdx2
     ) {
-        List<CacheEntry> new_cache = new ArrayList<>();
+        List<List<CompliedBlock>> new_cache = new ArrayList<>();
         if (predIdx1 == predIdx2) {
-            for (CacheEntry cache_entry: cache) {
-                Map<Integer, Set<Record>> arg1_indices = cache_entry.argIndicesList.get(predIdx1)[argIdx1];
-                for (Map.Entry<Integer, Set<Record>> entry: arg1_indices.entrySet()) {
-                    final int argument = entry.getKey();
-                    Set<Record> new_cs = new HashSet<>();
-                    for (Record record: entry.getValue()) {
-                        if (argument == record.args[argIdx2]) {
-                            new_cs.add(record);
-                        }
-                    }
-                    if (!new_cs.isEmpty()) {
-                        CompliedBlock cb = cache_entry.entry.get(predIdx1);
-                        CompliedBlock new_cb = new CompliedBlock(cb.relNum, cb.partAsgnRecord.clone(), new_cs);
-                        new_cb.partAsgnRecord[argIdx1] = argument;
-                        new_cb.partAsgnRecord[argIdx2] = argument;
-
-                        CacheEntry new_entry = new CacheEntry(cache_entry);
-                        new_entry.entry.set(predIdx1, new_cb);
-                        new_entry.argIndicesList.set(predIdx1, null);
-
-                        new_cache.add(new_entry);
-                    }
+            for (List<CompliedBlock> cache_entry: cache) {
+                CompliedBlock cb = cache_entry.get(predIdx1);
+                List<int[][]> slices = cb.indices.matchSlices(argIdx1, argIdx2);
+                for (int[][] slice: slices) {
+                    int matched_val = slice[0][argIdx1];
+                    int[] new_par = cb.partAsgnRecord.clone();
+                    new_par[argIdx1] = matched_val;
+                    new_par[argIdx2] = matched_val;
+                    CompliedBlock new_cb = new CompliedBlock(cb.relNum, new_par, slice);
+                    List<CompliedBlock> new_entry = new ArrayList<>(cache_entry);
+                    new_entry.set(predIdx1, new_cb);
+                    new_cache.add(new_entry);
                 }
             }
         } else {
-            for (CacheEntry cache_entry : cache) {
-                CompliedBlock cb1 = cache_entry.entry.get(predIdx1);
-                CompliedBlock cb2 = cache_entry.entry.get(predIdx2);
-                Map<Integer, Set<Record>> indices1 = cache_entry.argIndicesList.get(predIdx1)[argIdx1];
-                Map<Integer, Set<Record>> indices2 = cache_entry.argIndicesList.get(predIdx2)[argIdx2];
-                Set<Integer> arg_set = (indices1.size() < indices2.size()) ? indices1.keySet() : indices2.keySet(); // This assures that "arg_set" is the smaller one
-                for (int argument : arg_set) {
-                    Set<Record> new_cs1 = indices1.get(argument);
-                    Set<Record> new_cs2 = indices2.get(argument);
-                    if (null != new_cs1 && null != new_cs2) {
-                        CompliedBlock new_cb1 = new CompliedBlock(cb1.relNum, cb1.partAsgnRecord.clone(), new_cs1);
-                        CompliedBlock new_cb2 = new CompliedBlock(cb2.relNum, cb2.partAsgnRecord.clone(), new_cs2);
-                        new_cb1.partAsgnRecord[argIdx1] = argument;
-                        new_cb2.partAsgnRecord[argIdx2] = argument;
-
-                        CacheEntry new_entry = new CacheEntry(cache_entry);
-                        new_entry.entry.set(predIdx1, new_cb1);
-                        new_entry.entry.set(predIdx2, new_cb2);
-                        new_entry.argIndicesList.set(predIdx1, null);
-                        new_entry.argIndicesList.set(predIdx2, null);
-
-                        new_cache.add(new_entry);
-                    }
+            for (List<CompliedBlock> cache_entry : cache) {
+                CompliedBlock cb1 = cache_entry.get(predIdx1);
+                CompliedBlock cb2 = cache_entry.get(predIdx2);
+                IntTable.MatchedSubTables slices = IntTable.matchSlices(cb1.indices, argIdx1, cb2.indices, argIdx2);
+                for (int i = 0; i < slices.slices1.size(); i++) {
+                    int[][] slice1 = slices.slices1.get(i);
+                    int[][] slice2 = slices.slices2.get(i);
+                    int matched_val = slice1[0][argIdx1];
+                    int[] new_par1 = cb1.partAsgnRecord.clone();
+                    int[] new_par2 = cb2.partAsgnRecord.clone();
+                    new_par1[argIdx1] = matched_val;
+                    new_par2[argIdx2] = matched_val;
+                    CompliedBlock new_cb1 = new CompliedBlock(cb1.relNum, new_par1, slice1);
+                    CompliedBlock new_cb2 = new CompliedBlock(cb2.relNum, new_par2, slice2);
+                    List<CompliedBlock> new_entry = new ArrayList<>(cache_entry);
+                    new_entry.set(predIdx1, new_cb1);
+                    new_entry.set(predIdx2, new_cb2);
+                    new_cache.add(new_entry);
                 }
             }
         }
@@ -955,20 +921,19 @@ public class CachedRule extends Rule {
      * @param constant The numeration of the constant
      * @return A new cache containing all updated cache entries
      */
-    protected List<CacheEntry> assignCacheEntries(
-            List<CacheEntry> cache, int predIdx, int argIdx, int constant
+    protected List<List<CompliedBlock>> assignCacheEntries(
+            List<List<CompliedBlock>> cache, int predIdx, int argIdx, int constant
     ) {
-        int argument = Argument.constant(constant);
-        List<CacheEntry> new_cache = new ArrayList<>();
-        for (CacheEntry cache_entry: cache) {
-            Set<Record> new_cs = cache_entry.argIndicesList.get(predIdx)[argIdx].get(argument);
-            if (null != new_cs) {
-                CompliedBlock cb = cache_entry.entry.get(predIdx);
-                CacheEntry new_entry = new CacheEntry(cache_entry);
-                CompliedBlock new_cb = new CompliedBlock(cb.relNum, cb.partAsgnRecord.clone(), new_cs);
-                new_cb.partAsgnRecord[argIdx] = argument;
-                new_entry.entry.set(predIdx, new_cb);
-                new_entry.argIndicesList.set(predIdx, null);
+        List<List<CompliedBlock>> new_cache = new ArrayList<>();
+        for (List<CompliedBlock> cache_entry: cache) {
+            CompliedBlock cb = cache_entry.get(predIdx);
+            int[][] slice = cb.indices.getSlice(argIdx, constant);
+            if (0 < slice.length) {
+                int[] new_par = cb.partAsgnRecord.clone();
+                new_par[argIdx] = constant;
+                CompliedBlock new_cb = new CompliedBlock(cb.relNum, new_par, slice);
+                List<CompliedBlock> new_entry = new ArrayList<>(cache_entry);
+                new_entry.set(predIdx, new_cb);
                 new_cache.add(new_entry);
             }
         }
@@ -984,25 +949,24 @@ public class CachedRule extends Rule {
     public EvidenceBatch getEvidenceAndMarkEntailment() {
         final int[] relations_in_rule = new int[structure.size()];
         for (int i = 0; i < relations_in_rule.length; i++) {
-            relations_in_rule[i] = structure.get(i).functor;
+            relations_in_rule[i] = structure.get(i).predSymbol;
         }
         EvidenceBatch evidence_batch = new EvidenceBatch(relations_in_rule);
 
-        KbRelation target_relation = kb.getRelation(getHead().functor);
-        for (final CacheEntry cache_entry: posCache) {
+        SimpleRelation target_relation = kb.getRelation(getHead().predSymbol);
+        for (final List<CompliedBlock> cache_entry: posCache) {
             /* Find the grounding body */
             final int[][] grounding_body = new int[relations_in_rule.length][];
             for (int pred_idx = FIRST_BODY_PRED_IDX; pred_idx < structure.size(); pred_idx++) {
-                grounding_body[pred_idx] = cache_entry.entry.get(pred_idx).complSet.iterator().next().args;
+                grounding_body[pred_idx] = cache_entry.get(pred_idx).complSet[0];
             }
 
             /* Find all entailed records */
-            for (Record head_record: cache_entry.entry.get(HEAD_PRED_IDX).complSet) {
-                if (!target_relation.recordIsEntailed(head_record)) {
+            for (int[] head_record: cache_entry.get(HEAD_PRED_IDX).complSet) {
+                if (target_relation.entailIfNot(head_record)) {
                     final int[][] grounding = grounding_body.clone();
-                    grounding[HEAD_PRED_IDX] = head_record.args;
+                    grounding[HEAD_PRED_IDX] = head_record;
                     evidence_batch.evidenceList.add(grounding);
-                    target_relation.entailRecord(head_record);
                 }
             }
         }
@@ -1058,10 +1022,10 @@ public class CachedRule extends Rule {
         final Set<Record> head_templates = new HashSet<>();
         if (pred_idx_2_plv_links_map.isEmpty()) {
             /* No PLV, bind all GVs as templates */
-            for (final CacheEntry cache_entry: allCache) {
+            for (final List<CompliedBlock> cache_entry: allCache) {
                 final int[] new_template = head_pred.args.clone();
                 for (final BodyGvLinkInfo gv_link: body_gv_links) {
-                    final int argument = cache_entry.entry.get(gv_link.bodyPredIdx).partAsgnRecord[gv_link.bodyArgIdx];
+                    final int argument = cache_entry.get(gv_link.bodyPredIdx).partAsgnRecord[gv_link.bodyArgIdx];
                     for (int head_arg_idx: gv_link.headVarLocs) {
                         new_template[head_arg_idx] = argument;
                     }
@@ -1072,10 +1036,10 @@ public class CachedRule extends Rule {
             /* There are PLVs in the body */
             /* Find the bindings combinations of the GVs and the PLVs */
             final int[] base_template = head_pred.args.clone();
-            for (final CacheEntry cache_entry: allCache) {
+            for (final List<CompliedBlock> cache_entry: allCache) {
                 /* Bind the GVs first */
                 for (final BodyGvLinkInfo gv_loc: body_gv_links) {
-                    final int argument = cache_entry.entry.get(gv_loc.bodyPredIdx).partAsgnRecord[gv_loc.bodyArgIdx];
+                    final int argument = cache_entry.get(gv_loc.bodyPredIdx).partAsgnRecord[gv_loc.bodyArgIdx];
                     for (int head_arg_idx: gv_loc.headVarLocs) {
                         base_template[head_arg_idx] = argument;
                     }
@@ -1092,11 +1056,11 @@ public class CachedRule extends Rule {
                         final int body_pred_idx = entry.getKey();
                         final List<BodyGvLinkInfo> plv_links = entry.getValue();
                         final Set<Record> plv_bindings = new HashSet<>();
-                        final CompliedBlock cb = cache_entry.entry.get(body_pred_idx);
-                        for (Record cs_record : cb.complSet) {
+                        final CompliedBlock cb = cache_entry.get(body_pred_idx);
+                        for (int[] cs_record : cb.complSet) {
                             final int[] plv_binding_within_a_pred = new int[plv_links.size()];
                             for (int j = 0; j < plv_binding_within_a_pred.length; j++) {
-                                plv_binding_within_a_pred[j] = cs_record.args[plv_links.get(j).bodyArgIdx];
+                                plv_binding_within_a_pred[j] = cs_record[plv_links.get(j).bodyArgIdx];
                             }
                             plv_bindings.add(new Record(plv_binding_within_a_pred));
                         }
@@ -1113,11 +1077,11 @@ public class CachedRule extends Rule {
 
         /* Extend head templates */
         final Set<Record> counter_example_set = new HashSet<>();
-        KbRelation target_relation = kb.getRelation(head_pred.functor);
+        SimpleRelation target_relation = kb.getRelation(head_pred.predSymbol);
         if (head_only_var_arg_2_loc_map.isEmpty()) {
             /* No need to extend UVs */
             for (Record head_template : head_templates) {
-                if (!target_relation.hasRecord(head_template)) {
+                if (!target_relation.hasRow(head_template.args)) {
                     counter_example_set.add(head_template);
                 }
             }
@@ -1187,13 +1151,13 @@ public class CachedRule extends Rule {
      * @param varLocs The locations of UVs
      */
     protected void expandHeadUvs4CounterExamples(
-            final KbRelation targetRelation, final Set<Record> counterexamples, final Record template,
+            final SimpleRelation targetRelation, final Set<Record> counterexamples, final Record template,
             final List<Integer>[] varLocs, final int idx
     ) {
         final List<Integer> locations = varLocs[idx];
         if (idx < varLocs.length - 1) {
             /* Expand current UV and move to the next recursion */
-            for (int constant_symbol: kb.getAllConstants()) {
+            for (int constant_symbol: kb.allConstants()) {
                 final int argument = Argument.constant(constant_symbol);
                 for (int loc: locations) {
                     template.args[loc] = argument;
@@ -1202,12 +1166,12 @@ public class CachedRule extends Rule {
             }
         } else {
             /* Expand the last UV and add to counterexample set if it is */
-            for (int constant_symbol: kb.getAllConstants()) {
+            for (int constant_symbol: kb.allConstants()) {
                 final int argument = Argument.constant(constant_symbol);
                 for (int loc: locations) {
                     template.args[loc] = argument;
                 }
-                if (!targetRelation.hasRecord(template)) {
+                if (!targetRelation.hasRow(template.args)) {
                     counterexamples.add(new Record(template.args.clone()));
                 }
             }

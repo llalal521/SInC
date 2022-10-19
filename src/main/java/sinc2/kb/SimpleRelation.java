@@ -1,9 +1,9 @@
-package sinc2.kb.compact;
+package sinc2.kb;
 
-import sinc2.kb.KbException;
-import sinc2.kb.KbRelation;
+import sinc2.common.Record;
 import sinc2.util.ArrayOperation;
 import sinc2.util.LittleEndianIntIO;
+import sinc2.util.kb.KbRelation;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -113,7 +113,10 @@ public class SimpleRelation extends IntTable {
         entailmentFlags[idx / BITS_PER_INT] &= ~(0x1 << (idx % BITS_PER_INT));
     }
 
-
+    /**
+     * Set all records in the list as entailed in the relation if presented. The method WILL sort the records by the
+     * alphabetical order.
+     */
     public void setAllAsEntailed(int[][] records) {
         if (0 == records.length || totalCols != records[0].length) {
             return;
@@ -146,6 +149,19 @@ public class SimpleRelation extends IntTable {
     public boolean isEntailed(int[] record) {
         int idx = whereIs(record);
         return (0 <= idx) && 0 != entailment(idx);
+    }
+
+    /**
+     * If the record is in the relation and has not been marked as entailed, mark the record as entailed and return true.
+     * Otherwise, return false.
+     */
+    public boolean entailIfNot(int[] record) {
+        int idx = whereIs(record);
+        if (0 < idx && 0 == entailment(idx)) {
+            setEntailmentFlag(idx);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -189,13 +205,37 @@ public class SimpleRelation extends IntTable {
     }
 
     /**
-     * Write the records that are not entailed to a binary file. The format is the same as "KbRelation".
+     * Dump all records to a binary file. The format is the same as "KbRelation".
      *
      * @param basePath The path to where the relation file should be stored.
      * @throws KbException File writing failure
      * @see KbRelation
      */
-    public void dumpUnentailedRecords(String basePath) throws KbException {
+    public void dump(String basePath) throws KbException {
+        try {
+            FileOutputStream fos = new FileOutputStream(KbRelation.getRelFilePath(
+                    basePath, name, totalCols, totalRows
+            ).toFile());
+            for (int [] record: sortedRowsByCols[0]) {
+                for (int i : record) {
+                    fos.write(LittleEndianIntIO.leInt2ByteArray(i));
+                }
+            }
+            fos.close();
+        } catch (IOException e) {
+            throw new KbException(e);
+        }
+    }
+
+    /**
+     * Write the records that are not entailed and identified by FVS to a binary file. The format is the same as
+     * "KbRelation".
+     *
+     * @param basePath The path to where the relation file should be stored.
+     * @throws KbException File writing failure
+     * @see KbRelation
+     */
+    public void dumpNecessaryRecords(String basePath, List<int[]> fvsRecords) throws KbException {
         try {
             FileOutputStream fos = new FileOutputStream(KbRelation.getRelFilePath(
                     basePath, name, totalCols, totalRows
@@ -208,9 +248,33 @@ public class SimpleRelation extends IntTable {
                     }
                 }
             }
+            for (int [] record: fvsRecords) {
+                for (int i : record) {
+                    fos.write(LittleEndianIntIO.leInt2ByteArray(i));
+                }
+            }
             fos.close();
         } catch (IOException e) {
             throw new KbException(e);
+        }
+    }
+
+    public void dumpCounterexamples(String basePath, Set<Record> records) throws KbException {
+        if (0 < records.size()) {
+            /* Dump only non-empty relations */
+            try {
+                FileOutputStream fos = new FileOutputStream(SimpleCompressedKb.getCounterexampleFilePath(
+                        basePath, name, totalCols, records.size()
+                ).toFile());
+                for (Record counterexample: records) {
+                    for (int arg: counterexample.args) {
+                        fos.write(LittleEndianIntIO.leInt2ByteArray(arg));
+                    }
+                }
+                fos.close();
+            } catch (IOException e) {
+                throw new KbException(e);
+            }
         }
     }
 

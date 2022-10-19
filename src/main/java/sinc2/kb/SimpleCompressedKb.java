@@ -1,22 +1,49 @@
-package sinc2.kb.compact;
+package sinc2.kb;
 
 import sinc2.common.Argument;
-import sinc2.kb.CompressedKb;
-import sinc2.kb.KbException;
-import sinc2.kb.Record;
+import sinc2.common.Record;
 import sinc2.rule.Rule;
 import sinc2.util.LittleEndianIntIO;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
- * This class is used to store the components in the compressed KB.
+ * This class is for the compressed KB. It extends the numerated KB in three perspectives:
+ *   1. The compressed KB contains counterexample relations:
+ *      - The counterexamples are stored into '.ceg' files. The file format is the same as '.rel' files. The names of the
+ *        files are '<relation name>_<arity>_<#records>.ceg'.
+ *      - If there is no counterexample in a relation, the counterexample relation file is not created.
+ *   2. The compressed KB contains a hypothesis set:
+ *      - The hypothesis set is stored into a 'rules.hyp' file. The rules are written in the form of plain text, one per
+ *        line.
+ *      - If there is no rule in the hypothesis set, the file will not be created.
+ *   3. The compressed KB contains a supplementary constant set:
+ *      - The supplementary constant set is stored into a 'supplementary.cst' file. Constant numerations in the mapping
+ *        are stored in the file.
+ *        Note: The numeration mapping in a compressed KB contains all mappings as the original KB does.
+ *      - If there is no element in the supplementary set, the file will not be created.
+ * The necessary facts are stored as is in the original KB.
  *
  * @since 2.1
+ * @see sinc2.util.kb.KbRelation
+ * @see sinc2.util.kb.NumeratedKb
  */
 public class SimpleCompressedKb {
+    /** A regex pattern used to parse the counterexample file name */
+    protected static final Pattern COUNTEREXAMPLE_FILE_NAME_PATTERN = Pattern.compile("(.+)_([0-9]+)_([0-9]+).ceg$");
+    /** The name of the hypothesis file */
+    public static final String HYPOTHESIS_FILE_NAME = "rules.hyp";
+    /** The name of the second mapping file for the supplementary constants */
+    public static final String SUPPLEMENTARY_CONSTANTS_FILE_NAME = "supplementary.cst";
+
+    public static Path getCounterexampleFilePath(String kbPath, String relName, int arity, int records) {
+        return Paths.get(kbPath, String.format("%s_%d_%d.ceg", relName, arity, records));
+    }
+
     /** The name of the compressed KB */
     protected final String name;
     /** The reference to the original KB. The original KB is used for determining the necessary records and the missing
@@ -24,6 +51,8 @@ public class SimpleCompressedKb {
     protected final SimpleKb originalKb;
     /** The hypothesis set, i.e., a list of rules */
     protected List<Rule> hypothesis = new ArrayList<>();
+    /** The records included by FVS in each corresponding relation */
+    protected final List<int[]>[] fvsRecords;
     /** The counterexample sets. The ith set is correspondent to the ith relation in the original KB. */
     protected final Set[] counterexampleSets;
     /** The constants marked in a supplementary set. Otherwise, they are lost due to removal of facts. */
@@ -38,10 +67,16 @@ public class SimpleCompressedKb {
     public SimpleCompressedKb(String name, SimpleKb originalKb) {
         this.name = name;
         this.originalKb = originalKb;
+        this.fvsRecords = new List[originalKb.totalRelations()];
         this.counterexampleSets = new Set[originalKb.totalRelations()];
         for (int i = 0; i < counterexampleSets.length; i++) {
+            fvsRecords[i] = new ArrayList<>();
             counterexampleSets[i] = new HashSet<Record>();
         }
+    }
+
+    public void addFvsRecord(int relId, int[] record) {
+        fvsRecords[relId].add(record);
     }
 
     /**
@@ -50,28 +85,10 @@ public class SimpleCompressedKb {
      * @param relId   The id of the corresponding relation
      * @param records The counterexamples
      */
-    public void addCounterexamples(int relId, Collection<int[]> records) {
-        if (0 <= relId && relId < counterexampleSets.length) {
-            Set<Record> set = counterexampleSets[relId];
-            for (int[] record: records) {
-                set.add(new Record(record));
-            }
-        }
-    }
-
-    /**
-     * Add some counterexamples to the KB.
-     *
-     * @param relName The name of the corresponding relation
-     * @param records The counterexamples
-     */
-    public void addCounterexamples(String relName, Collection<int[]> records) {
-        SimpleRelation relation = originalKb.getRelation(relName);
-        if (null != relation) {
-            Set<Record> set = counterexampleSets[relation.id];
-            for (int[] record: records) {
-                set.add(new Record(record));
-            }
+    public void addCounterexamples(int relId, Collection<Record> records) {
+        Set<Record> set = counterexampleSets[relId];
+        for (Record record: records) {
+            set.add(new Record(record.args));
         }
     }
 
@@ -87,8 +104,14 @@ public class SimpleCompressedKb {
         Set<Integer> lost_constants = originalKb.allConstants();
 
         /* Remove all occurred arguments*/
-        for (SimpleRelation relation: originalKb.getRelations()) {
+        for (int i = 0; i < originalKb.totalRelations(); i++) {
+            SimpleRelation relation = originalKb.getRelation(i);
             relation.removeReservedConstants(lost_constants);
+            for (int[] record: fvsRecords[i]) {
+                for (int arg: record) {
+                    lost_constants.remove(arg);
+                }
+            }
         }
         for (Rule rule: hypothesis) {
             for (int pred_idx = 0; pred_idx < rule.predicates(); pred_idx++) {
@@ -125,34 +148,18 @@ public class SimpleCompressedKb {
         String dir_path = dir.getAbsolutePath();
         for (int i = 0; i < counterexampleSets.length; i++) {
             SimpleRelation relation = originalKb.getRelation(i);
-            Set<Record> counterexample_set = counterexampleSets[i];
-            relation.dumpUnentailedRecords(dir_path);
-            if (0 < counterexample_set.size()) {
-                /* Dump only non-empty relations */
-                try {
-                    FileOutputStream fos = new FileOutputStream(Paths.get(
-                            dir_path, CompressedKb.getCounterexampleFileName(relation.name)
-                    ).toFile());
-                    for (Record counterexample: counterexample_set) {
-                        for (int arg: counterexample.args) {
-                            fos.write(LittleEndianIntIO.leInt2ByteArray(arg));
-                        }
-                    }
-                    fos.close();
-                } catch (IOException e) {
-                    throw new KbException(e);
-                }
-            }
+            relation.dumpNecessaryRecords(dir_path, fvsRecords[i]);
+            relation.dumpCounterexamples(dir_path, counterexampleSets[i]);
         }
 
         /* Dump hypothesis */
         if (0 < hypothesis.size()) {
             try {
                 PrintWriter writer = new PrintWriter(
-                        Paths.get(dir_path, CompressedKb.HYPOTHESIS_FILE_NAME).toFile()
+                        Paths.get(dir_path, HYPOTHESIS_FILE_NAME).toFile()
                 );
                 for (Rule rule : hypothesis) {
-                    writer.println(rule.toDumpString());
+                    writer.println(rule.toDumpString(originalKb));
                 }
                 writer.close();
             } catch (FileNotFoundException e) {
@@ -165,7 +172,7 @@ public class SimpleCompressedKb {
         if (0 < supplementaryConstants.size()) {
             try {
                 FileOutputStream fos = new FileOutputStream(Paths.get(
-                        dir_path, CompressedKb.SUPPLEMENTARY_CONSTANTS_FILE_NAME
+                        dir_path, SUPPLEMENTARY_CONSTANTS_FILE_NAME
                 ).toFile());
                 for (int i : supplementaryConstants) {
                     fos.write(LittleEndianIntIO.leInt2ByteArray(i));
@@ -185,6 +192,14 @@ public class SimpleCompressedKb {
         int cnt = 0;
         for (SimpleRelation relation: originalKb.getRelations()) {
             cnt += relation.totalRows() - relation.totalEntailedRecords();
+        }
+        return cnt + totalFvsRecords();
+    }
+
+    public int totalFvsRecords() {
+        int cnt = 0;
+        for (List<int[]> fvs_records: fvsRecords) {
+            cnt += fvs_records.size();
         }
         return cnt;
     }
@@ -210,5 +225,9 @@ public class SimpleCompressedKb {
             updateSupplementaryConstants();
         }
         return supplementaryConstants.size();
+    }
+
+    public String getName() {
+        return name;
     }
 }

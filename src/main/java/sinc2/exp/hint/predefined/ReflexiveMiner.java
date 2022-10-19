@@ -1,6 +1,6 @@
 package sinc2.exp.hint.predefined;
 
-import sinc2.kb.compact.SimpleRelation;
+import sinc2.kb.SimpleRelation;
 
 import java.util.ArrayList;
 import java.util.List;

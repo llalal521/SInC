@@ -1,7 +1,7 @@
-package sinc2.kb.compact;
+package sinc2.kb;
 
-import sinc2.kb.KbRelation;
-import sinc2.kb.NumeratedKb;
+import sinc2.util.kb.KbRelation;
+import sinc2.util.kb.NumeratedKb;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,6 +24,9 @@ public class SimpleKb {
     protected final SimpleRelation[] relations;
     /** The map from relation names to IDs */
     protected final Map<String, Integer> relationNameMap;
+    /** The list of promising constants in the corresponding relations */
+    protected int[][][] promisingConstants;
+    protected Set<Integer> constants;
 
     /**
      * Load a KB from local file system.
@@ -34,11 +37,48 @@ public class SimpleKb {
      */
     public SimpleKb(String name, String basePath) throws IOException {
         this.name = name;
-        List<SimpleRelation> relations = new ArrayList<>();
         this.relationNameMap = new HashMap<>();
+        this.relations = loadRelations(basePath);
+        constants = null;
+    }
+
+    public SimpleKb(String kbName, int[][][] relations, String[] relNames, boolean calculateConstants) {
+        this.name = kbName;
+        this.relations = new SimpleRelation[relations.length];
+        this.relationNameMap = new HashMap<>();
+        for (int i = 0; i < relations.length; i++) {
+            this.relations[i] = new SimpleRelation(relNames[i], i, relations[i]);
+            relationNameMap.put(relNames[i], i);
+        }
+        if (calculateConstants) {
+            constants = new HashSet<>();
+            for (SimpleRelation relation: this.relations) {
+                relation.collectConstants(constants);
+            }
+        } else {
+            constants = null;
+        }
+    }
+
+    public SimpleKb(String name, String basePath, boolean calculateConstants) throws IOException {
+        this.name = name;
+        this.relationNameMap = new HashMap<>();
+        this.relations = loadRelations(basePath);
+        if (calculateConstants) {
+            constants = new HashSet<>();
+            for (SimpleRelation relation: relations) {
+                relation.collectConstants(constants);
+            }
+        } else {
+            constants = null;
+        }
+    }
+
+    protected SimpleRelation[] loadRelations(String basePath) throws IOException {
         File kb_dir = NumeratedKb.getKbPath(name, basePath).toFile();
         String kb_dir_path = kb_dir.getAbsolutePath();
         File[] files = kb_dir.listFiles();
+        List<SimpleRelation> relations = new ArrayList<>();
         if (null != files) {
             for (File f: files) {
                 KbRelation.RelationInfo rel_info = KbRelation.parseRelFilePath(f.getName());
@@ -51,7 +91,7 @@ public class SimpleKb {
                 }
             }
         }
-        this.relations = relations.toArray(new SimpleRelation[0]);
+        return relations.toArray(new SimpleRelation[0]);
     }
 
     public SimpleRelation getRelation(String name) {
@@ -80,27 +120,26 @@ public class SimpleKb {
     }
 
     public void setAsEntailed(int relationId, int[] record) {
-        if (relationId >= 0 && relationId < relations.length) {
-            relations[relationId].setAsEntailed(record);
-        }
+        relations[relationId].setAsEntailed(record);
     }
 
     public void setAsNotEntailed(String relationName, int[] record) {
-        Integer idx = relationNameMap.get(relationName);
-        if (null != idx) {
-            relations[idx].setAsNotEntailed(record);
-        }
+        relations[relationNameMap.get(relationName)].setAsNotEntailed(record);
     }
 
     public void setAsNotEntailed(int relationId, int[] record) {
-        if (relationId >= 0 && relationId < relations.length) {
-            relations[relationId].setAsNotEntailed(record);
+        relations[relationId].setAsNotEntailed(record);
+    }
+
+    public void updatePromisingConstants() {
+        promisingConstants = new int[relations.length][][];
+        for (int i = 0; i < relations.length; i++) {
+            promisingConstants[i] = relations[i].getPromisingConstants();
         }
     }
 
     public int[][] getPromisingConstants(int relId) {
-        SimpleRelation relation = getRelation(relId);
-        return (null == relation) ? null : relation.getPromisingConstants();
+        return promisingConstants[relId];
     }
 
     public String getName() {
@@ -124,10 +163,10 @@ public class SimpleKb {
     }
 
     public Set<Integer> allConstants() {
-        Set<Integer> constants = new HashSet<>();
-        for (SimpleRelation relation: relations) {
-            relation.collectConstants(constants);
-        }
         return constants;
+    }
+
+    public int totalConstants() {
+        return constants.size();
     }
 }

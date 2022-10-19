@@ -2,11 +2,12 @@ package sinc2.exp.hint;
 
 import sinc2.common.Predicate;
 import sinc2.kb.KbException;
-import sinc2.kb.KbRelation;
-import sinc2.kb.StaticKb;
+import sinc2.kb.SimpleKb;
+import sinc2.kb.SimpleRelation;
 import sinc2.rule.*;
 import sinc2.util.ArrayOperation;
 import sinc2.util.MultiSet;
+import sinc2.util.kb.NumerationMap;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -95,7 +96,9 @@ public class Hinter {
     protected final Path outputFilePath;
 
     /** The target KB */
-    protected StaticKb kb;
+    protected SimpleKb kb;
+    /** The numeration map */
+    protected NumerationMap numMap;
     /** The numerations of the relations in the KB */
     protected int[] kbRelationNums;
     /** The arities of the relations in the KB (correspond to the relation numeration) */
@@ -141,13 +144,14 @@ public class Hinter {
         try {
             /* Load KB */
             long time_start = System.currentTimeMillis();
-            kb = new StaticKb(kbName, kbPath);
+            kb = new SimpleKb(kbName, kbPath);
+            numMap = new NumerationMap(Paths.get(kbPath, kbName).toString());
             kbRelationNums = new int[kb.totalRelations()];
             kbRelationArities = new int[kb.totalRelations()];
             int idx = 0;
-            for (KbRelation relation: kb.getRelations()) {
-                kbRelationNums[idx] = relation.getNumeration();
-                kbRelationArities[idx] = relation.getArity();
+            for (SimpleRelation relation: kb.getRelations()) {
+                kbRelationNums[idx] = relation.id;
+                kbRelationArities[idx] = relation.totalCols();
                 idx++;
             }
             System.out.println("KB Loaded");
@@ -172,7 +176,7 @@ public class Hinter {
             String line;
             List<Hint> hints = new ArrayList<>();
             while (null != (line = reader.readLine())) {
-                hints.add(new Hint(line, kb.getNumerationMap()));
+                hints.add(new Hint(line, numMap));
             }
             System.out.println("Templates Loaded");
             System.out.flush();
@@ -186,7 +190,9 @@ public class Hinter {
                 int head_arity = kbRelationArities[i];
 
                 /* Create a relation for all positive entailments */
-                KbRelation pos_entails = new KbRelation("entailments", head_functor, head_arity);
+                SimpleRelation pos_entails = new SimpleRelation(
+                        "entailments", head_functor, kb.getRelation(head_functor).getAllRows().clone()
+                );
 
                 /* Try each template */
                 Map<MultiSet<Integer>, Set<Fingerprint>> tabu_set = new HashMap<>();
@@ -221,9 +227,9 @@ public class Hinter {
                     System.out.flush();
                 }
 
-                System.out.printf("Relation Done (%d/%d): %s\n", i+1, kbRelationNums.length, kb.num2Name(head_functor));
-                int covered_records = pos_entails.totalRecords();
-                int total_records = kb.getRelation(head_functor).totalRecords();
+                System.out.printf("Relation Done (%d/%d): %s\n", i+1, kbRelationNums.length, kb.getRelation(head_functor).name);
+                int covered_records = pos_entails.totalEntailedRecords();
+                int total_records = kb.getRelation(head_functor).totalRows();
                 total_covered_records += covered_records;
                 System.out.printf("Coverage: %.2f%% (%d/%d)\n", covered_records * 100.0 / total_records, covered_records, total_records);
                 System.out.flush();
@@ -266,7 +272,7 @@ public class Hinter {
             EntailmentExtractiveRule rule, List<SpecOpr> operations, int oprStartIdx,
             int[] templateFunctorInstantiation, int[] templateFunctorArities,
             int[][] functorRestrictionCounterLinks, int[] restrictionCounterBounds, int[] restrictionCounters,
-            int[] restrictionTargets, KbRelation positiveEntailments
+            int[] restrictionTargets, SimpleRelation positiveEntailments
     ) throws KbException {
         for (int opr_idx = oprStartIdx; opr_idx < operations.size(); opr_idx++) {
             SpecOpr opr = operations.get(opr_idx);
@@ -394,8 +400,8 @@ public class Hinter {
         Eval eval = rule.getEval();
         if (compRatioThreshold <= eval.value(EvalMetric.CompressionRatio)) {
             String rule_info = String.format("%s\t%d\t%d\t%d\t%.2f\t%.2f\t%d",
-                    rule.toDumpString(kb.getNumerationMap()), rule.length(), (int) eval.getPosEtls(), (int) eval.getNegEtls(),
-                    eval.getPosEtls()/kb.getRelation(templateFunctorInstantiation[0]).totalRecords()*100,
+                    rule.toDumpString(numMap), rule.length(), (int) eval.getPosEtls(), (int) eval.getNegEtls(),
+                    eval.getPosEtls()/kb.getRelation(templateFunctorInstantiation[0]).totalRows()*100,
                     eval.value(EvalMetric.CompressionRatio), (int) eval.value(EvalMetric.CompressionCapacity)
             );
             collectedRuleInfos.add(new CollectedRuleInfo(rule_info, eval.value(EvalMetric.CompressionRatio)));

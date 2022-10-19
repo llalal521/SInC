@@ -1,7 +1,8 @@
-package sinc2.kb;
+package sinc2.util.kb;
 
 import sinc2.common.Argument;
-import sinc2.util.ArrayOperation;
+import sinc2.common.Record;
+import sinc2.kb.KbException;
 import sinc2.util.LittleEndianIntIO;
 
 import java.io.File;
@@ -10,7 +11,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,17 +28,12 @@ import java.util.regex.Pattern;
  *     records are stored in the file in order, i.e., in the order of: 1st row 1st col, 1st row 2nd col, ..., ith row
  *     jth col, ith row (j+1)th col, ...
  *
- * Todo: The <#record> should be canceled as it is not necessary for loading records
- *
  * @since 2.0
  */
 public class KbRelation implements Iterable<Record> {
 
     /** A regex pattern used to parse the relation file name */
     protected static final Pattern REL_FILE_NAME_PATTERN = Pattern.compile("(.+)_([0-9]+)_([0-9]+).rel$");
-
-    /** The threshold for pruning useful constants */
-    public static double MIN_CONSTANT_COVERAGE = 0.25;
 
     /** The name of the relation */
     protected final String name;
@@ -44,12 +43,6 @@ public class KbRelation implements Iterable<Record> {
     protected final int arity;
     /** The set of the records */
     protected final Set<Record> records;
-    /** The set of entailed records */
-    protected final Set<Record> entailedRecords;
-    /** The index of each argument value */
-    protected final Map<Integer, Set<Record>>[] argumentIndices;
-    /** Promising constants for each argument */
-    protected int[][] promisingConstants = null;
 
     /**
      * Get the relation file path.
@@ -115,11 +108,6 @@ public class KbRelation implements Iterable<Record> {
         this.numeration = numeration;
         this.arity = arity;
         this.records = new HashSet<>();
-        this.entailedRecords = new HashSet<>();
-        this.argumentIndices = new Map[arity];
-        for (int i = 0; i < arity; i++) {
-            argumentIndices[i] = new HashMap<>();
-        }
     }
 
     /**
@@ -141,11 +129,6 @@ public class KbRelation implements Iterable<Record> {
         this.numeration = numeration;
         this.arity = arity;
         this.records = new HashSet<>();
-        this.entailedRecords = new HashSet<>();
-        this.argumentIndices = new Map[arity];
-        for (int i = 0; i < arity; i++) {
-            argumentIndices[i] = new HashMap<>();
-        }
 
         File rel_file = getRelFilePath(kbPtah, name, arity, totalRecords).toFile();
         loadHandler(rel_file, map);
@@ -170,11 +153,6 @@ public class KbRelation implements Iterable<Record> {
         this.numeration = numeration;
         this.arity = arity;
         this.records = new HashSet<>();
-        this.entailedRecords = new HashSet<>();
-        this.argumentIndices = new Map[arity];
-        for (int i = 0; i < arity; i++) {
-            argumentIndices[i] = new HashMap<>();
-        }
 
         File rel_file = Paths.get(kbPtah, fileName).toFile();
         loadHandler(rel_file, map);
@@ -188,14 +166,6 @@ public class KbRelation implements Iterable<Record> {
         this.numeration = another.numeration;
         this.arity = another.arity;
         this.records = new HashSet<>(another.records);
-        this.entailedRecords = new HashSet<>(another.entailedRecords);
-        this.argumentIndices = new Map[another.argumentIndices.length];
-        for (int i = 0; i < argumentIndices.length; i++) {
-            this.argumentIndices[i] = new HashMap<>();
-            for (Map.Entry<Integer, Set<Record>> entry: another.argumentIndices[i].entrySet()) {
-                this.argumentIndices[i].put(entry.getKey(), new HashSet<>(entry.getValue()));
-            }
-        }
     }
 
     /**
@@ -253,18 +223,6 @@ public class KbRelation implements Iterable<Record> {
             ));
         }
         records.add(record);
-
-        /* Update the argument index */
-        for (int arg_idx = 0; arg_idx < arity; arg_idx++) {
-            Map<Integer, Set<Record>> index = argumentIndices[arg_idx];
-            index.compute(record.args[arg_idx], (argument, records) -> {
-                if (null == records) {
-                    records = new HashSet<>();
-                }
-                records.add(record);
-                return records;
-            });
-        }
     }
 
     /**
@@ -294,44 +252,6 @@ public class KbRelation implements Iterable<Record> {
      */
     public void removeRecord(Record record) {
         records.remove(record);
-    }
-
-    /**
-     * Mark a record as entailed. The record will not be marked if it is not in the KB.
-     */
-    public void entailRecord(Record record) {
-        if (hasRecord(record)) {
-            entailedRecords.add(record);
-        }
-    }
-
-    /**
-     * Check if a record has been entailed.
-     */
-    public boolean recordIsEntailed(Record record) {
-        return entailedRecords.contains(record);
-    }
-
-    /**
-     * Update the promising constants according to current records.
-     */
-    public void updatePromisingConstants() {
-        promisingConstants = new int[arity][];
-        int threshold = (int) Math.ceil(records.size() * MIN_CONSTANT_COVERAGE);
-        for (int i = 0; i < arity; i++) {
-            Map<Integer, Set<Record>> argument_index = argumentIndices[i];
-            List<Integer> promising_constants = new ArrayList<>();
-            for (Map.Entry<Integer, Set<Record>> entry: argument_index.entrySet()) {
-                if (threshold <= entry.getValue().size()) {
-                    promising_constants.add(Argument.decode(entry.getKey()));
-                }
-            }
-            promisingConstants[i] = ArrayOperation.toArray(promising_constants);
-        }
-    }
-
-    public int[][] getPromisingConstants() {
-        return promisingConstants;
     }
 
     /**
@@ -391,10 +311,6 @@ public class KbRelation implements Iterable<Record> {
 
     public int totalRecords() {
         return records.size();
-    }
-
-    public Map<Integer, Set<Record>>[] getArgumentIndices() {
-        return argumentIndices;
     }
 
     @Override

@@ -3,7 +3,10 @@ package sinc2;
 import sinc2.common.DebugLevel;
 import sinc2.common.Predicate;
 import sinc2.common.SincException;
-import sinc2.kb.*;
+import sinc2.kb.KbException;
+import sinc2.kb.SimpleCompressedKb;
+import sinc2.kb.SimpleKb;
+import sinc2.kb.SimpleRelation;
 import sinc2.rule.Rule;
 import sinc2.util.graph.FeedbackVertexSetSolver;
 import sinc2.util.graph.GraphNode;
@@ -11,7 +14,10 @@ import sinc2.util.graph.Tarjan;
 
 import java.io.*;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * The abstract class for SInC. The overall compression procedure is implemented here.
@@ -44,9 +50,9 @@ public abstract class SInC {
 
     /* Compression related data */
     /** The input KB */
-    protected NumeratedKb kb;
+    protected SimpleKb kb;
     /** The compressed KB */
-    protected CompressedKb compressedKb;
+    protected SimpleCompressedKb compressedKb;
     /** A mapping from predicates to the nodes in the dependency graph */
     protected final Map<Predicate, GraphNode<Predicate>> predicate2NodeMap = new HashMap<>();
     /**
@@ -91,14 +97,14 @@ public abstract class SInC {
         }
 
         Rule.MIN_FACT_COVERAGE = config.minFactCoverage;
-        KbRelation.MIN_CONSTANT_COVERAGE = config.minConstantCoverage;
+        SimpleRelation.MIN_CONSTANT_COVERAGE = config.minConstantCoverage;
     }
 
     /**
      * Load a KB (in the format of Numerated KB) and return the KB
      */
-    protected NumeratedKb loadKb() throws KbException, IOException {
-        NumeratedKb kb =  new NumeratedKb(config.kbName, config.basePath);
+    protected SimpleKb loadKb() throws KbException, IOException {
+        SimpleKb kb =  new SimpleKb(config.kbName, config.basePath);
         kb.updatePromisingConstants();
         return kb;
     }
@@ -107,30 +113,21 @@ public abstract class SInC {
      * The relations that will be the targets of rule mining procedures. By default, all relations are the targets.
      * This function can be overridden to customize the target list.
      */
-    protected List<Integer> getTargetRelations() {
-        List<Integer> relations = new ArrayList<>();
-        for (KbRelation relation: kb.getRelations()) {
-            relations.add(relation.getNumeration());
+    protected int[] getTargetRelations() {
+        /* Relation IDs in SimpleKb are from 0 to n-1, where n is the number of relations */
+        int[] relation_ids = new int[kb.totalRelations()];
+        for (int i = 0; i < relation_ids.length; i++) {
+            relation_ids[i] = i;
         }
-        return relations;
+        return relation_ids;
     }
 
     /**
      * Determine the necessary set.
      */
     protected void dependencyAnalysis() throws KbException {
-        /* The KB has already been updated by the relation miners. Here we only need to find the nodes with no in-degree
-         * and those in the MFVS solution */
-        /* Find all nodes that are not entailed */
-        for (KbRelation relation: kb.getRelations()) {
-            for (Record record: relation.getRecords()) {
-                GraphNode<Predicate> node = new GraphNode<>(new Predicate(relation.getNumeration(), record.args));
-                if (!dependencyGraph.containsKey(node)) {
-                    compressedKb.addRecord(relation.getNumeration(), record);
-                }
-            }
-        }
-
+        /* The KB has already been updated by the relation miners. All records that are not entailed have already been
+         * flagged in the relations. Here we only need to find the nodes in the MFVS solution */
         /* Find all SCCs */
         final Tarjan<GraphNode<Predicate>> tarjan = new Tarjan<>(dependencyGraph, false);
         final List<Set<GraphNode<Predicate>>> sccs = tarjan.run();
@@ -141,7 +138,7 @@ public abstract class SInC {
                     new FeedbackVertexSetSolver<>(dependencyGraph, scc);
             final Set<GraphNode<Predicate>> fvs = fvs_solver.run();
             for (GraphNode<Predicate> node: fvs) {
-                compressedKb.addRecord(node.content.functor, node.content.args);
+                compressedKb.addFvsRecord(node.content.predSymbol, node.content.args);
             }
             monitor.sccVertices += scc.size();
             monitor.fvsVertices += fvs.size();
@@ -155,13 +152,14 @@ public abstract class SInC {
      * @return Whether the compressed KB can be recovered to the original one.
      */
     public boolean recover() {
-        try {
-            NumeratedKb recovered_kb = createRecovery().recover(compressedKb, kb.getName());
-            return kb.equals(recovered_kb);
-        } catch (KbException e) {
-            e.printStackTrace(logger);
-            return false;
-        }
+//        try {
+//            NumeratedKb recovered_kb = createRecovery().recover(compressedKb, kb.getName());
+//            return kb.equals(recovered_kb);
+//        } catch (KbException e) {
+//            e.printStackTrace(logger);
+//            return false;
+//        }
+        throw new Error("Not Implemented");  // Todo: implement here
     }
 
     abstract protected SincRecovery createRecovery();
@@ -169,7 +167,7 @@ public abstract class SInC {
     /**
      * Dump the compressed KB
      */
-    protected void dumpCompressedKb() throws IOException {
+    protected void dumpCompressedKb() throws KbException {
         compressedKb.dump(config.dumpPath);
     }
 
@@ -177,7 +175,7 @@ public abstract class SInC {
         monitor.show(logger);
     }
 
-    public CompressedKb getCompressedKb() {
+    public SimpleCompressedKb getCompressedKb() {
         return compressedKb;
     }
 
@@ -215,25 +213,27 @@ public abstract class SInC {
         }
         monitor.kbSize = kb.totalRecords();
         monitor.kbFunctors = kb.totalRelations();
-        monitor.kbConstants = kb.getAllConstants().size();
-        compressedKb = new CompressedKb(config.dumpName, kb);
+        monitor.kbConstants = kb.totalConstants();
+        compressedKb = new SimpleCompressedKb(config.dumpName, kb);
         long time_kb_loaded = System.currentTimeMillis();
         monitor.kbLoadTime = time_kb_loaded - time_start;
 
         /* Run relation miners on each relation */
         try {
-            final List<Integer> target_relations = getTargetRelations();
-            for (int i = 0; i < target_relations.size(); i++) {
-                Integer relation_num = target_relations.get(i);
+            final int[] target_relations = getTargetRelations();
+            for (int i = 0; i < target_relations.length; i++) {
+                int relation_num = target_relations[i];
                 RelationMiner relation_miner = createRelationMiner(relation_num);
                 relation_miner.run();
-                KbRelation ce_relation = compressedKb.getCounterexampleRelation(relation_num);
-                ce_relation.addRecords(relation_miner.getCounterexamples());
+                compressedKb.addCounterexamples(relation_num, relation_miner.getCounterexamples());
+                compressedKb.addHypothesisRules(relation_miner.getHypothesis());
                 for (Rule r: relation_miner.getHypothesis()) {
-                    compressedKb.addHypothesisRule(r);
                     monitor.hypothesisSize += r.length();
                 }
-                logInfo(String.format("Relation mining done (%d/%d): %s", i+1, target_relations.size(), kb.num2Name(relation_num)));
+                logInfo(String.format(
+                        "Relation mining done (%d/%d): %s",
+                        i+1, target_relations.length, kb.getRelation(relation_num).name
+                ));
                 monitor.hypothesisRuleNumber += relation_miner.getHypothesis().size();
             }
         } catch (KbException e) {
@@ -254,7 +254,7 @@ public abstract class SInC {
             /* Log the hypothesis */
             logInfo("\n### Hypothesis Found ###");
             for (Rule rule : compressedKb.getHypothesis()) {
-                logInfo(rule.toString(kb.getNumerationMap()));
+                logInfo(rule.toString(kb));
             }
             logger.println();
 
@@ -276,14 +276,14 @@ public abstract class SInC {
         /* Log the hypothesis */
         logInfo("\n### Hypothesis Found ###");
         for (Rule rule : compressedKb.getHypothesis()) {
-            logInfo(rule.toString(kb.getNumerationMap()));
+            logInfo(rule.toString(kb));
         }
         logger.println();
 
         /* Dump the compressed KB */
         try {
             dumpCompressedKb();
-        } catch (IOException e) {
+        } catch (KbException e) {
             e.printStackTrace(logger);
             logError("Compressed KB dump failed. Abort.");
             return;

@@ -1,6 +1,6 @@
-package sinc2.kb.compact;
+package sinc2.kb;
 
-import sinc2.kb.Record;
+import sinc2.common.Record;
 import sinc2.util.ArrayOperation;
 
 import java.util.*;
@@ -155,17 +155,17 @@ public class IntTable implements Iterable<int[]> {
     }
 
     static public class MatchedSubTables {
-        public final List<IntTable> subTables1;
-        public final List<IntTable> subTables2;
+        public final List<int[][]> slices1;
+        public final List<int[][]> slices2;
 
-        public MatchedSubTables(List<IntTable> subTables1, List<IntTable> subTables2) {
-            this.subTables1 = subTables1;
-            this.subTables2 = subTables2;
+        public MatchedSubTables(List<int[][]> slices1, List<int[][]> slices2) {
+            this.slices1 = slices1;
+            this.slices2 = slices2;
         }
     }
 
     /**
-     * Match the values of two columns in two IntTables. For each of the matched value v, derive a pair of new sub-tables
+     * Match the values of two columns in two slices. For each of the matched value v, derive a pair of slices
      * sub_tab1 and sub_tab2, such that: 1) for each row r1 in sub_tab1, r1 is in tab1, r1[col1]=v, and there is no row
      * r1' in tab1 but not in sub_tab1 that r1'[col]=v; 2) for each row r2 in sub_tab2, r2 is in tab2, t2[col2]=v, and
      * there is no row r2' in tab2 but not in sub_tab2 that r2'[col]=v.
@@ -173,15 +173,15 @@ public class IntTable implements Iterable<int[]> {
      * @return Two arrays of matched sub-tables. Each pair of sub-tables, subTables1[i] and subTables2[i], satisfies the
      * above restrictions.
      */
-    public static MatchedSubTables matchAsSubTables(IntTable tab1, int col1, IntTable tab2, int col2) {
+    public static MatchedSubTables matchSlices(IntTable tab1, int col1, IntTable tab2, int col2) {
         final int[] values1 = tab1.valuesByCols[col1];
         final int[] values2 = tab2.valuesByCols[col2];
         final int[] start_offsets1 = tab1.startOffsetsByCols[col1];
         final int[] start_offsets2 = tab2.startOffsetsByCols[col2];
         final int[][] sorted_rows1 = tab1.sortedRowsByCols[col1];
         final int[][] sorted_rows2 = tab2.sortedRowsByCols[col2];
-        List<IntTable> sub_tables1 = new ArrayList<>();
-        List<IntTable> sub_tables2 = new ArrayList<>();
+        List<int[][]> sub_tables1 = new ArrayList<>();
+        List<int[][]> sub_tables2 = new ArrayList<>();
         MatchedSubTables result = new MatchedSubTables(sub_tables1, sub_tables2);
 
         int idx1 = 0;
@@ -200,19 +200,108 @@ public class IntTable implements Iterable<int[]> {
                 int length1 = start_offsets1[idx1+1] - start_idx1;
                 int[][] slice1 = new int[length1][];
                 System.arraycopy(sorted_rows1, start_idx1, slice1, 0, length1);
-                sub_tables1.add(new IntTable(slice1));
+                sub_tables1.add(slice1);
 
                 int start_idx2 = start_offsets2[idx2];
                 int length2 = start_offsets2[idx2+1] - start_idx2;
                 int[][] slice2 = new int[length2][];
                 System.arraycopy(sorted_rows2, start_idx2, slice2, 0, length2);
-                sub_tables2.add(new IntTable(slice2));
+                sub_tables2.add(slice2);
 
                 idx1++;
                 idx2++;
             }
         }
         return result;
+    }
+
+    /**
+     * Extend the binary "matchSlices()" to n tables.
+     *
+     * @param tables The n tables
+     * @param cols   n column numbers, each of the corresponding table
+     * @return n lists of slices. Slices in a list is from the same table.
+     */
+    static public List<int[][]>[] matchSlices(IntTable[] tables, int[] cols) {
+        List<int[][]>[] slices_lists = new List[tables.length];
+        final int[][] values_arr = new int[tables.length][];
+        final int[][] start_offsets_arr = new int[tables.length][];
+        final int[][][] sorted_rows_arr = new int[tables.length][][];
+        final int[] idxs = new int[tables.length];
+        for (int i = 0; i < tables.length; i++) {
+            slices_lists[i] = new ArrayList<>();
+            int col = cols[i];
+            IntTable table = tables[i];
+            values_arr[i] = table.valuesByCols[col];
+            start_offsets_arr[i] = table.startOffsetsByCols[col];
+            sorted_rows_arr[i] = table.sortedRowsByCols[col];
+        }
+        while (true) {
+            /* Locate the maximum value */
+            int max_val = values_arr[0][idxs[0]];
+            int max_idx = 0;
+            boolean all_match = true;
+            for (int i = 1; i < tables.length; i++) {
+                int val = values_arr[i][idxs[i]];
+                if (val > max_val) {
+                    max_val = val;
+                    max_idx = i;
+                }
+                all_match &= val == max_val;
+            }
+
+            /* Match */
+            if (all_match) {
+                for (int i = 0; i < tables.length; i++) {
+                    int idx = idxs[i];
+                    int[] start_offsets = start_offsets_arr[i];
+                    int start_idx = start_offsets[idx];
+                    int length = start_offsets[idx+1] - start_idx;
+                    int[][] slice = new int[length][];
+                    System.arraycopy(sorted_rows_arr[i], start_idx, slice, 0, length);
+                    slices_lists[i].add(slice);
+                }
+            } else {
+                /* Update idxs */
+                for (int i = 0; i < tables.length; i++) {
+                    if (i == max_idx) {
+                        continue;
+                    }
+                    int new_idx = Arrays.binarySearch(values_arr[i], idxs[i], values_arr[i].length, max_val);
+                    idxs[i] = (0 > new_idx) ? (-new_idx-1) : new_idx;
+                }
+            }
+            for (int i = 0; i < tables.length; i++) {
+                if (idxs[i] >= values_arr[i].length) {
+                    return slices_lists;
+                }
+            }
+        }
+    }
+
+    /**
+     * Split the current table into slices, and in each slice, the arguments of the two columns are the same.
+     */
+    public List<int[][]> matchSlices(int col1, int col2) {
+        List<int[][]> slices = new ArrayList<>();
+        int[][] sorted_rows = sortedRowsByCols[col1];
+        int[] values = valuesByCols[col1];
+        int[] start_offsets = startOffsetsByCols[col1];
+        for (int i = 0; i < values.length; i++) {
+            List<int[]> slice = new ArrayList<>();
+            int val = values[i];
+            int end_offset = start_offsets[i+1];
+            for (int offset = start_offsets[i]; offset < end_offset; offset++) {
+                int[] row = sorted_rows[offset];
+                if (val == row[col2]) {
+                    slice.add(row);
+                }
+            }
+            if (!slice.isEmpty()) {
+                slices.add(slice.toArray(new int[0][]));
+            }
+        }
+        return slices;
     }
 
     /**

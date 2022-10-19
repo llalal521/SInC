@@ -2,7 +2,7 @@ package sinc2.impl.base;
 
 import sinc2.RelationMiner;
 import sinc2.common.Predicate;
-import sinc2.kb.NumeratedKb;
+import sinc2.kb.SimpleKb;
 import sinc2.rule.EvalMetric;
 import sinc2.rule.Rule;
 import sinc2.util.graph.GraphNode;
@@ -31,7 +31,7 @@ public class RelationMinerBasic extends RelationMiner {
      * @param logger               A logger
      */
     public RelationMinerBasic(
-            NumeratedKb kb, int targetRelation, EvalMetric evalMetric, int beamwidth, double stopCompressionRatio,
+            SimpleKb kb, int targetRelation, EvalMetric evalMetric, int beamwidth, double stopCompressionRatio,
             Map<Predicate, GraphNode<Predicate>> predicate2NodeMap,
             Map<GraphNode<Predicate>, Set<GraphNode<Predicate>>> dependencyGraph, PrintWriter logger
     ) {
@@ -43,7 +43,7 @@ public class RelationMinerBasic extends RelationMiner {
      */
     @Override
     protected Rule getStartRule() {
-        return new CachedRule(targetRelation, kb.getRelationArity(targetRelation), new HashSet<>(), tabuSet, kb);
+        return new CachedRule(targetRelation, kb.getRelation(targetRelation).totalCols(), new HashSet<>(), tabuSet, kb);
     }
 
     /**

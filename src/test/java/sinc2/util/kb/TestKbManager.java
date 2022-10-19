@@ -1,5 +1,6 @@
-package sinc2.kb;
+package sinc2.util.kb;
 
+import sinc2.kb.SimpleCompressedKb;
 import sinc2.util.LittleEndianIntIO;
 
 import java.io.*;
@@ -161,19 +162,23 @@ public class TestKbManager {
     }
 
     protected void createHypothesisFile() throws FileNotFoundException {
-        PrintWriter writer = new PrintWriter(Paths.get(ckbPath, CompressedKb.HYPOTHESIS_FILE_NAME).toFile());
+        PrintWriter writer = new PrintWriter(Paths.get(ckbPath, SimpleCompressedKb.HYPOTHESIS_FILE_NAME).toFile());
         writer.println("father(X0,X1):-family(?,X0,X1)");
         writer.println("mother(X0,catherine):-family(X0,?,catherine)");
         writer.close();
     }
 
     protected void createCounterexampleFiles() throws IOException {
-        FileOutputStream fos = new FileOutputStream(Paths.get(ckbPath, CompressedKb.getCounterexampleFileName("mother")).toFile());
+        FileOutputStream fos = new FileOutputStream(SimpleCompressedKb.getCounterexampleFilePath(
+                ckbPath, "mother", 2, 1
+        ).toFile());
         fos.write(LittleEndianIntIO.leInt2ByteArray(5));
         fos.write(LittleEndianIntIO.leInt2ByteArray(5));
         fos.close();
 
-        fos = new FileOutputStream(Paths.get(ckbPath, CompressedKb.getCounterexampleFileName("father")).toFile());
+        fos = new FileOutputStream(SimpleCompressedKb.getCounterexampleFilePath(
+                ckbPath, "father", 2, 2
+        ).toFile());
         fos.write(LittleEndianIntIO.leInt2ByteArray(0x10));
         fos.write(LittleEndianIntIO.leInt2ByteArray(0x11));
         fos.write(LittleEndianIntIO.leInt2ByteArray(0xe));

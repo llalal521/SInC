@@ -1,8 +1,8 @@
 package sinc2.exp.hint.predefined;
 
 import sinc2.exp.hint.ExperimentException;
-import sinc2.kb.compact.SimpleKb;
-import sinc2.kb.compact.SimpleRelation;
+import sinc2.kb.SimpleKb;
+import sinc2.kb.SimpleRelation;
 
 import java.io.*;
 import java.nio.file.Path;

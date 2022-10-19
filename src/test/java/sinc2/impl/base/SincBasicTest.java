@@ -5,21 +5,24 @@ import sinc2.SincConfig;
 import sinc2.common.Argument;
 import sinc2.common.Predicate;
 import sinc2.common.SincException;
-import sinc2.kb.CompressedKb;
 import sinc2.kb.KbException;
-import sinc2.kb.NumeratedKb;
+import sinc2.kb.SimpleCompressedKb;
+import sinc2.kb.SimpleKb;
 import sinc2.rule.BareRule;
 import sinc2.rule.EvalMetric;
 import sinc2.rule.Fingerprint;
 import sinc2.rule.Rule;
 import sinc2.util.datagen.FamilyRelationGenerator;
+import sinc2.util.kb.NumerationMap;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SincBasicTest {
 
@@ -35,41 +38,33 @@ class SincBasicTest {
         String kb_name = "family.tiny." + UUID.randomUUID();
 //        String compressed_kb_name = kb_name + ".comp";
         FamilyRelationGenerator.generateTiny(TMP_DIR, kb_name, 10, 0);
-        NumeratedKb kb = new NumeratedKb(kb_name, TMP_DIR);
+        SimpleKb kb = new SimpleKb(kb_name, TMP_DIR);
+        Path kb_dir_path = Paths.get(TMP_DIR, kb_name);
+        NumerationMap map = new NumerationMap(kb_dir_path.toString());
+        int male = map.name2Num(FamilyRelationGenerator.Gender.MALE.getName());
+        int female = map.name2Num(FamilyRelationGenerator.Gender.FEMALE.getName());
 
         final Predicate head1 = new Predicate(
-                kb.name2Num(FamilyRelationGenerator.OtherRelation.GENDER.getName()),
-                new int[]{
-                        Argument.variable(0),
-                        Argument.constant(kb.name2Num(FamilyRelationGenerator.Gender.MALE.getName()))
-                }
+                kb.getRelation(FamilyRelationGenerator.OtherRelation.GENDER.getName()).id,
+                new int[]{Argument.variable(0), Argument.constant(male)}
         );
         final Predicate body1 = new Predicate(
-                kb.name2Num(FamilyRelationGenerator.FamilyRelations.FATHER.getName()),
-                new int[]{
-                        Argument.variable(0),
-                        Argument.EMPTY_VALUE
-                }
+                kb.getRelation(FamilyRelationGenerator.FamilyRelations.FATHER.getName()).id,
+                new int[]{Argument.variable(0), Argument.EMPTY_VALUE}
         );
         BareRule r1 = new BareRule(new ArrayList<>(Arrays.asList(head1, body1)), new HashSet<>(), new HashMap<>());
-        assertEquals("gender(X0,male):-father(X0,?)", r1.toDumpString(kb.getNumerationMap()));
+        assertEquals("gender(X0,male):-father(X0,?)", r1.toDumpString(map));
 
         final Predicate head2 = new Predicate(
-                kb.name2Num(FamilyRelationGenerator.OtherRelation.GENDER.getName()),
-                new int[]{
-                        Argument.variable(0),
-                        Argument.constant(kb.name2Num(FamilyRelationGenerator.Gender.FEMALE.getName()))
-                }
+                kb.getRelation(FamilyRelationGenerator.OtherRelation.GENDER.getName()).id,
+                new int[]{Argument.variable(0), Argument.constant(female)}
         );
         final Predicate body2 = new Predicate(
-                kb.name2Num(FamilyRelationGenerator.FamilyRelations.MOTHER.getName()),
-                new int[]{
-                        Argument.variable(0),
-                        Argument.EMPTY_VALUE
-                }
+                kb.getRelation(FamilyRelationGenerator.FamilyRelations.MOTHER.getName()).id,
+                new int[]{Argument.variable(0), Argument.EMPTY_VALUE}
         );
         BareRule r2 = new BareRule(new ArrayList<>(Arrays.asList(head2, body2)), new HashSet<>(), new HashMap<>());
-        assertEquals("gender(X0,female):-mother(X0,?)", r2.toDumpString(kb.getNumerationMap()));
+        assertEquals("gender(X0,female):-mother(X0,?)", r2.toDumpString(map));
 
         final Set<Fingerprint> expected_rules = new HashSet<>();
         expected_rules.add(r1.getFingerprint());
@@ -88,7 +83,7 @@ class SincBasicTest {
             Set<Fingerprint> rule_set_sinc = new HashSet<>();
             SincBasic sinc = new SincBasic(config);
             sinc.run();
-            CompressedKb compressed_kb = sinc.getCompressedKb();
+            SimpleCompressedKb compressed_kb = sinc.getCompressedKb();
             for (Rule r: compressed_kb.getHypothesis()) {
                 rule_set_sinc.add(r.getFingerprint());
             }
@@ -97,7 +92,7 @@ class SincBasicTest {
             assertEquals(expected_rules, rule_set_sinc);
             deleteDir(Paths.get(TMP_DIR, compressed_kb_name).toFile());
         }
-        deleteDir(Paths.get(TMP_DIR, kb_name).toFile());
+        deleteDir(kb_dir_path.toFile());
     }
 
     @Test
@@ -112,75 +107,67 @@ class SincBasicTest {
         String kb_name = "family.simple." + UUID.randomUUID();
         String compressed_kb_name = kb_name + ".comp";
         FamilyRelationGenerator.generateSimple(TMP_DIR, kb_name, 10, 0);
-        NumeratedKb kb = new NumeratedKb(kb_name, TMP_DIR);
+        SimpleKb kb = new SimpleKb(kb_name, TMP_DIR);
+        Path kb_dir_path = Paths.get(TMP_DIR, kb_name);
+        NumerationMap map = new NumerationMap(kb_dir_path.toString());
+        int male = map.name2Num(FamilyRelationGenerator.Gender.MALE.getName());
+        int female = map.name2Num(FamilyRelationGenerator.Gender.FEMALE.getName());
 
         final Predicate head1 = new Predicate(
-                kb.name2Num(FamilyRelationGenerator.OtherRelation.GENDER.getName()),
-                new int[]{
-                        Argument.variable(0),
-                        Argument.constant(kb.name2Num(FamilyRelationGenerator.Gender.MALE.getName()))
-                }
+                kb.getRelation(FamilyRelationGenerator.OtherRelation.GENDER.getName()).id,
+                new int[]{Argument.variable(0), Argument.constant(male)}
         );
         final Predicate body1 = new Predicate(
-                kb.name2Num(FamilyRelationGenerator.FamilyRelations.FATHER.getName()),
-                new int[]{
-                        Argument.variable(0),
-                        Argument.EMPTY_VALUE
-                }
+                kb.getRelation(FamilyRelationGenerator.FamilyRelations.FATHER.getName()).id,
+                new int[]{Argument.variable(0), Argument.EMPTY_VALUE}
         );
         BareRule r1 = new BareRule(new ArrayList<>(Arrays.asList(head1, body1)), new HashSet<>(), new HashMap<>());
-        assertEquals("gender(X0,male):-father(X0,?)", r1.toDumpString(kb.getNumerationMap()));
+        assertEquals("gender(X0,male):-father(X0,?)", r1.toDumpString(map));
 
         final Predicate head2 = new Predicate(
-                kb.name2Num(FamilyRelationGenerator.OtherRelation.GENDER.getName()),
-                new int[]{
-                        Argument.variable(0),
-                        Argument.constant(kb.name2Num(FamilyRelationGenerator.Gender.FEMALE.getName()))
-                }
+                kb.getRelation(FamilyRelationGenerator.OtherRelation.GENDER.getName()).id,
+                new int[]{Argument.variable(0), Argument.constant(female)}
         );
         final Predicate body2 = new Predicate(
-                kb.name2Num(FamilyRelationGenerator.FamilyRelations.MOTHER.getName()),
-                new int[]{
-                        Argument.variable(0),
-                        Argument.EMPTY_VALUE
-                }
+                kb.getRelation(FamilyRelationGenerator.FamilyRelations.MOTHER.getName()).id,
+                new int[]{Argument.variable(0), Argument.EMPTY_VALUE}
         );
         BareRule r2 = new BareRule(new ArrayList<>(Arrays.asList(head2, body2)), new HashSet<>(), new HashMap<>());
-        assertEquals("gender(X0,female):-mother(X0,?)", r2.toDumpString(kb.getNumerationMap()));
+        assertEquals("gender(X0,female):-mother(X0,?)", r2.toDumpString(map));
 
         final Predicate head3 = new Predicate(
-                kb.name2Num(FamilyRelationGenerator.FamilyRelations.PARENT.getName()),
+                kb.getRelation(FamilyRelationGenerator.FamilyRelations.PARENT.getName()).id,
                 new int[]{
                         Argument.variable(0),
                         Argument.variable(1)
                 }
         );
         final Predicate body3 = new Predicate(
-                kb.name2Num(FamilyRelationGenerator.FamilyRelations.FATHER.getName()),
+                kb.getRelation(FamilyRelationGenerator.FamilyRelations.FATHER.getName()).id,
                 new int[]{
                         Argument.variable(0),
                         Argument.variable(1)
                 }
         );
         BareRule r3 = new BareRule(new ArrayList<>(Arrays.asList(head3, body3)), new HashSet<>(), new HashMap<>());
-        assertEquals("parent(X0,X1):-father(X0,X1)", r3.toDumpString(kb.getNumerationMap()));
+        assertEquals("parent(X0,X1):-father(X0,X1)", r3.toDumpString(map));
 
         final Predicate head4 = new Predicate(
-                kb.name2Num(FamilyRelationGenerator.FamilyRelations.PARENT.getName()),
+                kb.getRelation(FamilyRelationGenerator.FamilyRelations.PARENT.getName()).id,
                 new int[]{
                         Argument.variable(0),
                         Argument.variable(1)
                 }
         );
         final Predicate body4 = new Predicate(
-                kb.name2Num(FamilyRelationGenerator.FamilyRelations.MOTHER.getName()),
+                kb.getRelation(FamilyRelationGenerator.FamilyRelations.MOTHER.getName()).id,
                 new int[]{
                         Argument.variable(0),
                         Argument.variable(1)
                 }
         );
         BareRule r4 = new BareRule(new ArrayList<>(Arrays.asList(head4, body4)), new HashSet<>(), new HashMap<>());
-        assertEquals("parent(X0,X1):-mother(X0,X1)", r4.toDumpString(kb.getNumerationMap()));
+        assertEquals("parent(X0,X1):-mother(X0,X1)", r4.toDumpString(map));
 
         final Set<Fingerprint> expected_rules = new HashSet<>();
         expected_rules.add(r1.getFingerprint());
@@ -199,7 +186,7 @@ class SincBasicTest {
             Set<Fingerprint> rule_set_sinc = new HashSet<>();
             SincBasic sinc = new SincBasic(config);
             sinc.run();
-            CompressedKb compressed_kb = sinc.getCompressedKb();
+            SimpleCompressedKb compressed_kb = sinc.getCompressedKb();
             for (Rule r: compressed_kb.getHypothesis()) {
                 rule_set_sinc.add(r.getFingerprint());
             }
@@ -208,7 +195,7 @@ class SincBasicTest {
             assertEquals(expected_rules, rule_set_sinc);
             deleteDir(Paths.get(TMP_DIR, compressed_kb_name).toFile());
         }
-        deleteDir(Paths.get(TMP_DIR, kb_name).toFile());
+        deleteDir(kb_dir_path.toFile());
     }
 
     private void deleteDir(File file) {

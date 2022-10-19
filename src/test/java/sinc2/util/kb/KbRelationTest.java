@@ -1,8 +1,10 @@
-package sinc2.kb;
+package sinc2.util.kb;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import sinc2.common.Record;
+import sinc2.kb.KbException;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -296,44 +298,5 @@ class KbRelationTest {
         checkRecordSet(new HashSet<>(List.of(
                 new Record(new int[]{7, 8, 9}), new Record(new int[]{0xd, 0xe, 0xf}), new Record(new int[]{4, 4, 4}), new Record(new int[]{5, 5, 5}), new Record(new int[]{6, 6, 6})
         )), relation);
-    }
-
-    @Test
-    void testEntailRecord() throws IOException, KbException {
-        KbRelation relation = new KbRelation(
-                "family", 1, 3, 4, testKbManager.getKbPath(), null
-        );
-        relation.entailRecord(new Record(new int[]{4, 5, 6}));
-        relation.entailRecord(new Record(new int[]{4, 4, 4}));
-        assertTrue(relation.recordIsEntailed(new Record(new int[]{4, 5, 6})));
-        assertFalse(relation.recordIsEntailed(new Record(new int[]{4, 4, 4})));
-        assertFalse(relation.recordIsEntailed(new Record(new int[]{7, 8, 9})));
-        assertFalse(relation.recordIsEntailed(new Record(new int[]{0xa, 0xb, 0xc})));
-        assertFalse(relation.recordIsEntailed(new Record(new int[]{0xd, 0xe, 0xf})));
-    }
-
-    @Test
-    void testPromisingConstants1() throws IOException, KbException {
-        /* Load from file */
-        KbRelation relation = new KbRelation(
-                "family", 1, 3, 4, testKbManager.getKbPath(), null
-        );
-        relation.addRecord(new Record(new int[]{4, 4, 4}));
-        KbRelation.MIN_CONSTANT_COVERAGE = 0.3;
-        relation.updatePromisingConstants();
-        assertArrayEquals(new int[][]{new int[]{4}, new int[0], new int[0]}, relation.getPromisingConstants());
-    }
-
-    @Test
-    void testPromisingConstants2() throws KbException {
-        /* Create from empty */
-        KbRelation relation = new KbRelation("test", 0, 2);
-        relation.addRecord(new Record(new int[]{1, 2}));
-        relation.addRecord(new Record(new int[]{1, 3}));
-        relation.addRecord(new Record(new int[]{2, 1}));
-        relation.addRecord(new Record(new int[]{2, 3}));
-        KbRelation.MIN_CONSTANT_COVERAGE = 0.5;
-        relation.updatePromisingConstants();
-        assertArrayEquals(new int[][]{new int[]{1, 2}, new int[]{3}}, relation.getPromisingConstants());
     }
 }

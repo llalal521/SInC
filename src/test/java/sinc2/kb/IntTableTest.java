@@ -1,10 +1,11 @@
-package sinc2.kb.compact;
+package sinc2.kb;
 
 import org.junit.jupiter.api.Test;
-import sinc2.kb.Record;
+import sinc2.common.Record;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -139,7 +140,7 @@ class IntTableTest {
         IntTable table2 = new IntTable(rows2);
 
         /* t1c0 & t2c0 */
-        IntTable.MatchedSubTables matched_result = IntTable.matchAsSubTables(table1, 0, table2, 0);
+        IntTable.MatchedSubTables matched_result = IntTable.matchSlices(table1, 0, table2, 0);
         IntTable expected_sub_tab11 = new IntTable(new int[][]{
                 new int[] {1, 5, 3},
                 new int[] {1, 2, 9},
@@ -157,20 +158,20 @@ class IntTableTest {
                 new int[]{2, 2},
                 new int[]{2, 3},
         });
-        assertEquals(2, matched_result.subTables1.size());
-        assertEquals(2, matched_result.subTables2.size());
-        for (int i = 0; i < matched_result.subTables1.size(); i++) {
-            IntTable actual_sub_tab1 = matched_result.subTables1.get(i);
-            IntTable actual_sub_tab2 = matched_result.subTables2.get(i);
-            int matched_value = actual_sub_tab1.iterator().next()[0];
+        assertEquals(2, matched_result.slices1.size());
+        assertEquals(2, matched_result.slices2.size());
+        for (int i = 0; i < matched_result.slices1.size(); i++) {
+            int[][] actual_sub_tab1 = matched_result.slices1.get(i);
+            int[][] actual_sub_tab2 = matched_result.slices2.get(i);
+            int matched_value = actual_sub_tab1[0][0];
             switch (matched_value) {
                 case 1:
-                    tableEqual(expected_sub_tab11, actual_sub_tab1);
-                    tableEqual(expected_sub_tab21, actual_sub_tab2);
+                    tableEqual(expected_sub_tab11, new IntTable(actual_sub_tab1));
+                    tableEqual(expected_sub_tab21, new IntTable(actual_sub_tab2));
                     break;
                 case 2:
-                    tableEqual(expected_sub_tab12, actual_sub_tab1);
-                    tableEqual(expected_sub_tab22, actual_sub_tab2);
+                    tableEqual(expected_sub_tab12, new IntTable(actual_sub_tab1));
+                    tableEqual(expected_sub_tab22, new IntTable(actual_sub_tab2));
                     break;
                 default:
                     fail();
@@ -178,7 +179,7 @@ class IntTableTest {
         }
 
         /* t1c2 & t2c1 */
-        matched_result = IntTable.matchAsSubTables(table1, 2, table2, 1);
+        matched_result = IntTable.matchSlices(table1, 2, table2, 1);
         expected_sub_tab12 = new IntTable(new int[][]{
                 new int[] {1, 5, 2},
         });
@@ -196,11 +197,11 @@ class IntTableTest {
                 new int[]{2, 3},
                 new int[]{3, 3},
         });
-        assertEquals(2, matched_result.subTables1.size());
-        assertEquals(2, matched_result.subTables2.size());
-        for (int i = 0; i < matched_result.subTables1.size(); i++) {
-            IntTable actual_sub_tab1 = matched_result.subTables1.get(i);
-            IntTable actual_sub_tab2 = matched_result.subTables2.get(i);
+        assertEquals(2, matched_result.slices1.size());
+        assertEquals(2, matched_result.slices2.size());
+        for (int i = 0; i < matched_result.slices1.size(); i++) {
+            IntTable actual_sub_tab1 = new IntTable(matched_result.slices1.get(i));
+            IntTable actual_sub_tab2 = new IntTable(matched_result.slices2.get(i));
             int matched_value = actual_sub_tab1.iterator().next()[2];
             switch (matched_value) {
                 case 2:
@@ -210,6 +211,63 @@ class IntTableTest {
                 case 3:
                     tableEqual(expected_sub_tab13, actual_sub_tab1);
                     tableEqual(expected_sub_tab23, actual_sub_tab2);
+                    break;
+                default:
+                    fail();
+            }
+        }
+    }
+
+    @Test
+    void testMatchMultiple() {
+        int[][] rows1 = new int[][] {
+                new int[] {1, 5, 3},
+                new int[] {2, 4, 3},
+                new int[] {1, 2, 9},
+                new int[] {5, 3, 3},
+                new int[] {1, 5, 2},
+        };
+        IntTable table1 = new IntTable(rows1);
+        int[][] rows2 = new int[][] {
+                new int[] {1, 2},
+                new int[] {2, 4},
+                new int[] {2, 5},
+                new int[] {3, 6},
+                new int[] {4, 8},
+        };
+        IntTable table2 = new IntTable(rows2);
+        int[][] rows3 = new int[][] {
+                new int[] {1},
+                new int[] {2},
+                new int[] {4},
+                new int[] {5},
+        };
+        IntTable table3 = new IntTable(rows3);
+        IntTable expected_sub_table11 = new IntTable(new int[][]{new int[]{1, 2, 9}});
+        IntTable expected_sub_table21 = new IntTable(new int[][]{new int[]{2, 4}, new int[]{2, 5}});
+        IntTable expected_sub_table31 = new IntTable(new int[][]{new int[]{2}});
+        IntTable expected_sub_table12 = new IntTable(new int[][]{new int[]{2, 4, 3}});
+        IntTable expected_sub_table22 = new IntTable(new int[][]{new int[]{4, 8}});
+        IntTable expected_sub_table32 = new IntTable(new int[][]{new int[]{4}});
+        List<int[][]>[] slices = IntTable.matchSlices(new IntTable[]{table1, table2, table3}, new int[]{1, 0, 0});
+        assertEquals(3, slices.length);
+        assertEquals(2, slices[0].size());
+        assertEquals(2, slices[1].size());
+        assertEquals(2, slices[2].size());
+        for (int i = 0; i < 2; i++) {
+            IntTable actual_sub_table1 = new IntTable(slices[0].get(i));
+            IntTable actual_sub_table2 = new IntTable(slices[1].get(i));
+            IntTable actual_sub_table3 = new IntTable(slices[2].get(i));
+            switch (actual_sub_table1.getAllRows()[0][1]) {
+                case 2:
+                    tableEqual(expected_sub_table11, actual_sub_table1);
+                    tableEqual(expected_sub_table21, actual_sub_table2);
+                    tableEqual(expected_sub_table31, actual_sub_table3);
+                    break;
+                case 4:
+                    tableEqual(expected_sub_table12, actual_sub_table1);
+                    tableEqual(expected_sub_table22, actual_sub_table2);
+                    tableEqual(expected_sub_table32, actual_sub_table3);
                     break;
                 default:
                     fail();
