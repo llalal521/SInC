@@ -22,6 +22,9 @@ public abstract class Rule {
     /** The beginning index of the body predicate */
     public static final int FIRST_BODY_PRED_IDX = HEAD_PRED_IDX + 1;
 
+    /** Minimum rule length */
+    public static final int MIN_LENGTH = 0;
+
     /** The threshold of the coverage value for pruning */
     public static double MIN_FACT_COVERAGE = 0.0;
 
@@ -53,7 +56,7 @@ public abstract class Rule {
      * rule := predicate:-body
      * body := ε | predicate | predicate,body
      * predicate := pred_symbol(args)
-     * args := ε | variable | constant | variable,args | constant,args todo: numbers should be included (as numerated constants)
+     * args := ε | variable | constant | variable,args | constant,args
      *
      * A "variable" is defined by the following regular expression: [A-Z][a-zA-z0-9]*
      * A "pred_symbol" and a "constant" are defined by the following regex: [a-z][a-zA-z0-9]*
@@ -419,23 +422,23 @@ public abstract class Rule {
     /**
      * Initialize the most general rule of a certain target head relation.
      *
-     * @param headFunctor The functor of the head predicate, i.e., the target relation.
+     * @param headPredSymbol The functor of the head predicate, i.e., the target relation.
      * @param arity The arity of the functor
      * @param fingerprintCache The cache of the used fingerprints
      * @param category2TabuSetMap The tabu set of pruned fingerprints
      */
     public Rule(
-            int headFunctor, int arity, Set<Fingerprint> fingerprintCache,
+            int headPredSymbol, int arity, Set<Fingerprint> fingerprintCache,
             Map<MultiSet<Integer>, Set<Fingerprint>> category2TabuSetMap
     ) {
         this.fingerprintCache = fingerprintCache;
         this.category2TabuSetMap = category2TabuSetMap;
         structure = new ArrayList<>();
         limitedVarCnts = new ArrayList<>();
-        length = 0;
+        length = MIN_LENGTH;
         eval = null;
 
-        structure.add(new Predicate(headFunctor, arity));
+        structure.add(new Predicate(headPredSymbol, arity));
         fingerprint = new Fingerprint(structure);
         this.fingerprintCache.add(fingerprint);
     }
@@ -457,7 +460,7 @@ public abstract class Rule {
         eval = null;
 
         /* Calculate the length and find the limited variables */
-        length = 0;
+        length = MIN_LENGTH;
         Map<Integer, Integer> old_vid_2_new_vid_map = new HashMap<>();
         for (Predicate p: structure) {
             this.structure.add(new Predicate(p));

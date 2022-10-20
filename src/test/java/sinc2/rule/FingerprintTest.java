@@ -229,6 +229,7 @@ class FingerprintTest {
         assertEquals(0, failed);
     }
 
+    /* It is normal if this test failed */
     @Test
     public void testNotDupFromStructure() {
         String[][] rule_pair_strs = new String[][]{
@@ -471,6 +472,7 @@ class FingerprintTest {
         assertEquals(0, failed);
     }
 
+    /* It is normal if this test failed */
     @Test
     void testNotDupFromRuleString() {
         int failed = 0;
@@ -515,6 +517,7 @@ class FingerprintTest {
         assertEquals(0, failed);
     }
 
+    /* It is normal if this test failed */
     @Test
     void testNotSpecOfFromRuleString() {
         int failed = 0;

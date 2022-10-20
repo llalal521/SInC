@@ -16,11 +16,11 @@ import java.util.List;
  */
 public class EvidenceBatch {
     /** The relation of each predicate in the rule */
-    public final int[] relationsInRule;
+    public final int[] predicateSymbolsInRule;
     /** The list of evidence. Each list is a piece of evidence */
     public final List<int[][]> evidenceList = new ArrayList<>();
 
-    public EvidenceBatch(int[] relationsInRule) {
-        this.relationsInRule = relationsInRule;
+    public EvidenceBatch(int[] predicateSymbolsInRule) {
+        this.predicateSymbolsInRule = predicateSymbolsInRule;
     }
 }

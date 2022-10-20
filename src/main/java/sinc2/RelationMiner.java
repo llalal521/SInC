@@ -341,7 +341,7 @@ public abstract class RelationMiner {
         EvidenceBatch evidence_batch = rule.getEvidenceAndMarkEntailment();
         for (int[][] grounding: evidence_batch.evidenceList) {
             final Predicate head_pred = new Predicate(
-                    evidence_batch.relationsInRule[Rule.HEAD_PRED_IDX], grounding[Rule.HEAD_PRED_IDX]
+                    evidence_batch.predicateSymbolsInRule[Rule.HEAD_PRED_IDX], grounding[Rule.HEAD_PRED_IDX]
             );
             final GraphNode<Predicate> head_node = predicate2NodeMap.computeIfAbsent(
                     head_pred, k -> new GraphNode<>(head_pred)
@@ -356,7 +356,7 @@ public abstract class RelationMiner {
                 } else {
                     for (int pred_idx = Rule.FIRST_BODY_PRED_IDX; pred_idx < grounding.length; pred_idx++) {
                         final Predicate body_pred = new Predicate(
-                                evidence_batch.relationsInRule[pred_idx], grounding[pred_idx]
+                                evidence_batch.predicateSymbolsInRule[pred_idx], grounding[pred_idx]
                         );
                         final GraphNode<Predicate> body_node = predicate2NodeMap.computeIfAbsent(
                                 body_pred, kk -> new GraphNode<>(body_pred)
