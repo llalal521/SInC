@@ -25,9 +25,9 @@ class RelationMinerTest {
 
     static class TestRelationMiner extends RelationMiner {
 
-        static final BareRule bad_rule = new BareRule(0, 0, new HashSet<>(), new HashMap<>());
+        static final BareRule BAD_RULE = new BareRule(0, 0, new HashSet<>(), new HashMap<>());
         static {
-            bad_rule.returningEval = Eval.MIN;
+            BAD_RULE.returningEval = Eval.MIN;
         }
 
         public TestRelationMiner(
@@ -45,7 +45,7 @@ class RelationMinerTest {
 
         @Override
         protected int checkThenAddRule(UpdateStatus updateStatus, Rule updatedRule, Rule originalRule, Rule[] candidates) throws InterruptedSignal {
-            return super.checkThenAddRule(updateStatus, updatedRule, bad_rule, candidates);
+            return super.checkThenAddRule(updateStatus, updatedRule, BAD_RULE, candidates);
         }
 
         @Override
@@ -94,8 +94,8 @@ class RelationMinerTest {
          * 1    2   4   4   6   2   4
          */
         kb = new SimpleKb(KB_NAME, TEST_DIR);
-        kb.updatePromisingConstants();
         SimpleRelation.MIN_CONSTANT_COVERAGE = 0.6;
+        kb.updatePromisingConstants();
     }
 
     @Test
@@ -114,12 +114,12 @@ class RelationMinerTest {
 
         Set<String> expected_specs = new HashSet<>(List.of(
                 "family(X0,X0,?):-",
-                "family(X0,?,X0):-",
+                "family(X0,?,X0):-",//
                 "family(?,X0,X0):-",
 //                "family(X0,?,?):-family(X0,?,?)",
                 "family(X0,?,?):-family(?,X0,?)",
                 "family(X0,?,?):-family(?,?,X0)",
-                "family(?,X0,?):-family(X0,?,?)",
+                "family(?,X0,?):-family(X0,?,?)",//
 //                "family(?,X0,?):-family(?,X0,?)",
                 "family(?,X0,?):-family(?,?,X0)",
                 "family(?,?,X0):-family(X0,?,?)",
@@ -138,7 +138,7 @@ class RelationMinerTest {
                 "family(?,?,X0):-father(X0,?)",
                 "family(?,?,X0):-father(?,X0)",
                 "family(X0,?,?):-isMale(X0)",
-                "family(?,X0,?):-isMale(X0)",
+                "family(?,X0,?):-isMale(X0)",//
                 "family(?,?,X0):-isMale(X0)",
                 "family(1,?,?):-",
                 "family(?,2,?):-"
@@ -149,7 +149,7 @@ class RelationMinerTest {
                 new HashMap<>(), new HashMap<>(), new PrintWriter(System.out)
         );
         Rule[] spec_rules = new Rule[expected_specs.size() * 2];
-        assertEquals(expected_specs.size(), miner.findSpecializations(base_rule, spec_rules));
+        int actual_spec_cnt = miner.findSpecializations(base_rule, spec_rules);
         Set<String> actual_specs =new HashSet<>();
         for (Rule rule: spec_rules) {
             if (null == rule) {
@@ -157,6 +157,7 @@ class RelationMinerTest {
             }
             actual_specs.add(rule.toDumpString(kb));
         }
+        assertEquals(expected_specs.size(), actual_spec_cnt);
         assertEquals(expected_specs, actual_specs);
     }
 

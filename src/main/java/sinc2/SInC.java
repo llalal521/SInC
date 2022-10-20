@@ -104,7 +104,7 @@ public abstract class SInC {
      * Load a KB (in the format of Numerated KB) and return the KB
      */
     protected SimpleKb loadKb() throws KbException, IOException {
-        SimpleKb kb =  new SimpleKb(config.kbName, config.basePath);
+        SimpleKb kb =  new SimpleKb(config.kbName, config.basePath, true);
         kb.updatePromisingConstants();
         return kb;
     }
@@ -132,7 +132,6 @@ public abstract class SInC {
         final Tarjan<GraphNode<Predicate>> tarjan = new Tarjan<>(dependencyGraph, false);
         final List<Set<GraphNode<Predicate>>> sccs = tarjan.run();
         for (Set<GraphNode<Predicate>> scc: sccs) {
-            /* 找出FVS的一个解，并把之放入start_set */
             /* Find a solution of MFVS and add to "necessaries" */
             final FeedbackVertexSetSolver<GraphNode<Predicate>> fvs_solver =
                     new FeedbackVertexSetSolver<>(dependencyGraph, scc);
@@ -159,7 +158,7 @@ public abstract class SInC {
 //            e.printStackTrace(logger);
 //            return false;
 //        }
-        throw new Error("Not Implemented");  // Todo: implement here
+        return false;  // Todo: Re-implement here
     }
 
     abstract protected SincRecovery createRecovery();
@@ -227,13 +226,13 @@ public abstract class SInC {
                 relation_miner.run();
                 compressedKb.addCounterexamples(relation_num, relation_miner.getCounterexamples());
                 compressedKb.addHypothesisRules(relation_miner.getHypothesis());
-                for (Rule r: relation_miner.getHypothesis()) {
-                    monitor.hypothesisSize += r.length();
-                }
                 logInfo(String.format(
                         "Relation mining done (%d/%d): %s",
                         i+1, target_relations.length, kb.getRelation(relation_num).name
                 ));
+                for (Rule r: relation_miner.getHypothesis()) {
+                    monitor.hypothesisSize += r.length();
+                }
                 monitor.hypothesisRuleNumber += relation_miner.getHypothesis().size();
             }
         } catch (KbException e) {

@@ -1177,4 +1177,9 @@ public class CachedRule extends Rule {
             }
         }
     }
+
+    @Override
+    public void releaseMemory() {
+        // Todo: implement here
+    }
 }

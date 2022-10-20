@@ -88,7 +88,7 @@ public abstract class RelationMiner {
         /* Find a local optimum (there is certainly a local optimum in the search routine) */
         while (true) {
             /* Find the candidates in the next round according to current beams */
-            Rule[] best_candidates = new Rule[beamwidth];
+            Rule[] top_candidates = new Rule[beamwidth];
             try {
                 for (int i = 0; i < beamwidth && null != beams[i]; i++) {
                     Rule r = beams[i];
@@ -99,8 +99,8 @@ public abstract class RelationMiner {
                     }
 
                     /* Find the specializations and generalizations of rule 'r' */
-                    int specializations_cnt = findSpecializations(r, best_candidates);
-                    int generalizations_cnt = findGeneralizations(r, best_candidates);
+                    int specializations_cnt = findSpecializations(r, top_candidates);
+                    int generalizations_cnt = findGeneralizations(r, top_candidates);
                     if (0 == specializations_cnt && 0 == generalizations_cnt) {
                         /* If no better specialized and generalized rules, 'r' is a local optimum */
                         /* Keep track of only the best local optimum */
@@ -118,21 +118,21 @@ public abstract class RelationMiner {
                         best_rule = beams[i];
                     }
                 }
-                for (int i = 0; i < beamwidth && null != best_candidates[i]; i++) {
-                    if (best_rule.getEval().value(evalMetric) < best_candidates[i].getEval().value(evalMetric)) {
-                        best_rule = best_candidates[i];
+                for (int i = 0; i < beamwidth && null != top_candidates[i]; i++) {
+                    if (best_rule.getEval().value(evalMetric) < top_candidates[i].getEval().value(evalMetric)) {
+                        best_rule = top_candidates[i];
                     }
                 }
-                return (null != best_rule) ? (best_rule.getEval().useful() ? best_rule : null) : null;
+                return (null != best_rule && best_rule.getEval().useful()) ? best_rule : null;
             }
 
             /* Find the best candidate */
             Rule best_candidate = null;
-            if (null != best_candidates[0]) {
-                best_candidate = best_candidates[0];
-                for (int i = 1; i < beamwidth && null != best_candidates[i]; i++) {
-                    if (best_candidate.getEval().value(evalMetric) < best_candidates[i].getEval().value(evalMetric)) {
-                        best_candidate = best_candidates[i];
+            if (null != top_candidates[0]) {
+                best_candidate = top_candidates[0];
+                for (int i = 1; i < beamwidth && null != top_candidates[i]; i++) {
+                    if (best_candidate.getEval().value(evalMetric) < top_candidates[i].getEval().value(evalMetric)) {
+                        best_candidate = top_candidates[i];
                     }
                 }
             }
@@ -155,7 +155,7 @@ public abstract class RelationMiner {
             }
 
             /* Update the beams */
-            beams = best_candidates;
+            beams = top_candidates;
         }
     }
 
@@ -289,23 +289,21 @@ public abstract class RelationMiner {
             case NORMAL:
                 if (updatedRule.getEval().value(evalMetric) > originalRule.getEval().value(evalMetric)) {
                     updated_is_better = true;
-                    if (null == candidates[0]) {
-                        candidates[0] = updatedRule;
-                    } else {
-                        int worst_candidate_idx = 0;
-                        double lowest_score = candidates[0].getEval().value(evalMetric);
-                        for (int i = 1; i < candidates.length; i++) {
-                            if (null == candidates[i]) {
-                                worst_candidate_idx = i;
-                                break;
-                            }
-                            double candidate_socre = candidates[i].getEval().value(evalMetric);
-                            if (lowest_score > candidate_socre) {
-                                worst_candidate_idx = i;
-                                lowest_score = candidate_socre;
-                            }
+                    int replace_idx = -1;
+                    double replaced_score = updatedRule.getEval().value(evalMetric);
+                    for (int i = 0; i < candidates.length; i++) {
+                        if (null == candidates[i]) {
+                            replace_idx = i;
+                            break;
                         }
-                        candidates[worst_candidate_idx] = updatedRule;
+                        double candidate_socre = candidates[i].getEval().value(evalMetric);
+                        if (replaced_score > candidate_socre) {
+                            replace_idx = i;
+                            replaced_score = candidate_socre;
+                        }
+                    }
+                    if (0 <= replace_idx) {
+                        candidates[replace_idx] = updatedRule;
                     }
                 }
                 break;
@@ -381,6 +379,7 @@ public abstract class RelationMiner {
         while (!SInC.interrupted && (null != (rule = findRule()))) {
             hypothesis.add(rule);
             updateKbAndDependencyGraph(rule);
+            rule.releaseMemory();
             covered_facts += rule.getEval().getPosEtls();
             logger.printf(
                     "Found (Coverage: %.2f%%, %d/%d): %s\n", covered_facts * 100.0 / total_facts, covered_facts, total_facts,
