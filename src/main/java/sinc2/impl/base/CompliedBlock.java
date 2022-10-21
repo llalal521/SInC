@@ -9,8 +9,6 @@ import sinc2.kb.IntTable;
  * @since 2.0
  */
 public class CompliedBlock {
-    /** Relation Numeration */
-    public final int relNum;
     /** Partially Assigned Record (PAR) */
     public final int[] partAsgnRecord;
     /** Compliance Set (CS) */
@@ -18,15 +16,13 @@ public class CompliedBlock {
     /** The IntTable here serves as the indices of each argument */
     public IntTable indices;
 
-    public CompliedBlock(int relNum, int[] partAsgnRecord, int[][] complSet) {
-        this.relNum = relNum;
+    public CompliedBlock(int[] partAsgnRecord, int[][] complSet) {
         this.partAsgnRecord = partAsgnRecord;
         this.complSet = complSet;
         this.indices = null;
     }
 
-    public CompliedBlock(int relNum, int[] partAsgnRecord, int[][] complSet, IntTable indices) {
-        this.relNum = relNum;
+    public CompliedBlock(int[] partAsgnRecord, int[][] complSet, IntTable indices) {
         this.partAsgnRecord = partAsgnRecord;
         this.complSet = complSet;
         this.indices = indices;
