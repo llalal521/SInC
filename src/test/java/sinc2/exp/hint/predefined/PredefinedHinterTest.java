@@ -471,7 +471,96 @@ class PredefinedHinterTest {
         }
         return new BareRule(structure, cache, tabu);
     }
+    @Test
+    void testRun6() throws KbException, IOException, ExperimentException, RuleParseException {
+        // Test TypeInference Rule
+        /* Rules:
+         *   kid(X):-child(X,Y)
+         *   kid(X):-father(Y,X)
+         *   kid(X):-mother(Y,X)
+         *   kid(X):-family(Y,Z,X)
+         */
 
+        final String KB_NAME = "HinterTest-" + UUID.randomUUID();
+        final String FAMILY = "family";
+
+        final String FATHER = "father";
+        final String MOTHER = "mother";
+        final String CHILD = "child";
+        final String KID = "kid";
+
+        final int FAMILY_ARITY = 3;
+        final int PARENT_ARITY = 2;
+        final int FATHER_ARITY = 2;
+        final int MOTHER_ARITY = 2;
+        final int CHILD_ARITY = 2;
+        final int FAMILIES = 10;
+
+        final String DAD = "dad";
+        final String MOM = "mom";
+        final String SON = "son";
+        final String DAUGHTER = "daughter";
+        final String HINT_FILE_NAME = "template.hint";
+
+        /* Create KB */
+        NumeratedKb kb = new NumeratedKb(KB_NAME);
+        for (int i = 0; i < FAMILIES; i++) {
+            String dad = DAD + i;
+            String mom = MOM + i;
+            String son = SON + i;
+            String daughter = DAUGHTER + i;
+            kb.addRecord(FAMILY, new String[]{dad, mom, son});
+            kb.addRecord(FAMILY, new String[]{dad, mom, daughter});
+            kb.addRecord(FATHER, new String[]{dad, son});
+            kb.addRecord(FATHER, new String[]{dad, daughter});
+            kb.addRecord(MOTHER, new String[]{mom, son});
+            kb.addRecord(MOTHER, new String[]{mom, daughter});
+
+            kb.addRecord(CHILD, new String[]{son, dad});
+            kb.addRecord(CHILD, new String[]{daughter, dad});
+            kb.addRecord(CHILD, new String[]{son, mom});
+            kb.addRecord(CHILD, new String[]{daughter, mom});
+
+            kb.addRecord(KID, new String[]{daughter});
+            kb.addRecord(KID, new String[]{son});
+        }
+        kb.dump(MEM_DIR);
+
+        File hint_file = Paths.get(MEM_DIR, HINT_FILE_NAME).toFile();
+        PrintWriter hint_writer = new PrintWriter(hint_file);
+        hint_writer.println(0.2);
+        hint_writer.println(0.8);
+        hint_writer.println("TypeInference");
+        hint_writer.close();
+
+        PredefinedHinter pHinter=new PredefinedHinter();
+        String[] main_args={MEM_DIR, KB_NAME, hint_file.getAbsolutePath()};
+        pHinter.main(main_args);
+
+
+        Set<Fingerprint> cache = new HashSet<>();
+        Map<MultiSet<Integer>, Set<Fingerprint>> tabu = new HashMap<>();
+        Set<Rule> expected_rules = new HashSet<>();
+        expected_rules.add(parseBareRule("kid(X):-child(X,Y)", kb.getNumerationMap(), cache, tabu));
+        expected_rules.add(parseBareRule("kid(X):-father(Y,X)", kb.getNumerationMap(), cache, tabu));
+        expected_rules.add(parseBareRule("kid(X):-mother(Y,X)", kb.getNumerationMap(), cache, tabu));
+        expected_rules.add(parseBareRule("kid(X):-family(Y,Z,X)", kb.getNumerationMap(), cache, tabu));
+
+        String rules_root = pHinter.getOutputDirPath(hint_file.getAbsolutePath(), KB_NAME);
+        File rules_file=Paths.get(rules_root,"rules_TypeInference.tsv").toFile();
+        BufferedReader reader = new BufferedReader(new FileReader(rules_file));
+        String line = reader.readLine();    // read the title line
+        Set<Rule> actual_rules = new HashSet<>();
+        while (null != (line = reader.readLine())) {
+            actual_rules.add(parseBareRule(line.split("\t")[0], kb.getNumerationMap(), cache, tabu));
+        }
+        assertEquals(expected_rules, actual_rules);
+
+        /* Remove test files */
+        deleteDir(Paths.get(MEM_DIR, KB_NAME).toFile());
+        hint_file.delete();
+        rules_file.delete();
+    }
     private void deleteDir(File file) {
         File[] contents = file.listFiles();
         if (contents != null) {
