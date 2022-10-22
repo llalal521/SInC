@@ -21,6 +21,7 @@ public class SubsumptionMiner extends TemplateMiner {
         List<MatchedRule> matched_rules = new ArrayList<>();
         for (int p = 0; p < relations.length; p++) {
             SimpleRelation relation_p = relations[p];
+            arity = relation_p.totalCols();
 
             /* Match head & check validness */
             for (int h = 0; h < relations.length; h++) {
