@@ -1,4 +1,4 @@
-package sinc2.kb;
+package sinc2.common;
 
 import java.util.Arrays;
 

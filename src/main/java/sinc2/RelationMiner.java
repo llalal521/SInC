@@ -2,9 +2,8 @@ package sinc2;
 
 import sinc2.common.*;
 import sinc2.kb.KbException;
-import sinc2.kb.KbRelation;
-import sinc2.kb.NumeratedKb;
-import sinc2.kb.Record;
+import sinc2.kb.SimpleKb;
+import sinc2.kb.SimpleRelation;
 import sinc2.rule.*;
 import sinc2.util.MultiSet;
 import sinc2.util.graph.GraphNode;
@@ -19,7 +18,7 @@ import java.util.*;
  */
 public abstract class RelationMiner {
     /** The input KB */
-    protected final NumeratedKb kb;
+    protected final SimpleKb kb;
     /** The target relation numeration */
     protected final int targetRelation;
     /** The rule evaluation metric */
@@ -55,7 +54,7 @@ public abstract class RelationMiner {
      * @param logger A logger
      */
     public RelationMiner(
-            NumeratedKb kb, int targetRelation, EvalMetric evalMetric, int beamwidth, double stopCompressionRatio,
+            SimpleKb kb, int targetRelation, EvalMetric evalMetric, int beamwidth, double stopCompressionRatio,
             Map<Predicate, GraphNode<Predicate>> predicate2NodeMap,
             Map<GraphNode<Predicate>, Set<GraphNode<Predicate>>> dependencyGraph,
             PrintWriter logger
@@ -89,19 +88,19 @@ public abstract class RelationMiner {
         /* Find a local optimum (there is certainly a local optimum in the search routine) */
         while (true) {
             /* Find the candidates in the next round according to current beams */
-            Rule[] best_candidates = new Rule[beamwidth];
+            Rule[] top_candidates = new Rule[beamwidth];
             try {
                 for (int i = 0; i < beamwidth && null != beams[i]; i++) {
                     Rule r = beams[i];
                     selectAsBeam(r);
                     if (DebugLevel.VERBOSE <= DebugLevel.LEVEL) {
-                        logger.printf("Extend: %s\n", r.toString(kb.getNumerationMap()));
+                        logger.printf("Extend: %s\n", r.toString(kb));
                         logger.flush();
                     }
 
                     /* Find the specializations and generalizations of rule 'r' */
-                    int specializations_cnt = findSpecializations(r, best_candidates);
-                    int generalizations_cnt = findGeneralizations(r, best_candidates);
+                    int specializations_cnt = findSpecializations(r, top_candidates);
+                    int generalizations_cnt = findGeneralizations(r, top_candidates);
                     if (0 == specializations_cnt && 0 == generalizations_cnt) {
                         /* If no better specialized and generalized rules, 'r' is a local optimum */
                         /* Keep track of only the best local optimum */
@@ -119,21 +118,21 @@ public abstract class RelationMiner {
                         best_rule = beams[i];
                     }
                 }
-                for (int i = 0; i < beamwidth && null != best_candidates[i]; i++) {
-                    if (best_rule.getEval().value(evalMetric) < best_candidates[i].getEval().value(evalMetric)) {
-                        best_rule = best_candidates[i];
+                for (int i = 0; i < beamwidth && null != top_candidates[i]; i++) {
+                    if (best_rule.getEval().value(evalMetric) < top_candidates[i].getEval().value(evalMetric)) {
+                        best_rule = top_candidates[i];
                     }
                 }
-                return (null != best_rule) ? (best_rule.getEval().useful() ? best_rule : null) : null;
+                return (null != best_rule && best_rule.getEval().useful()) ? best_rule : null;
             }
 
             /* Find the best candidate */
             Rule best_candidate = null;
-            if (null != best_candidates[0]) {
-                best_candidate = best_candidates[0];
-                for (int i = 1; i < beamwidth && null != best_candidates[i]; i++) {
-                    if (best_candidate.getEval().value(evalMetric) < best_candidates[i].getEval().value(evalMetric)) {
-                        best_candidate = best_candidates[i];
+            if (null != top_candidates[0]) {
+                best_candidate = top_candidates[0];
+                for (int i = 1; i < beamwidth && null != top_candidates[i]; i++) {
+                    if (best_candidate.getEval().value(evalMetric) < top_candidates[i].getEval().value(evalMetric)) {
+                        best_candidate = top_candidates[i];
                     }
                 }
             }
@@ -156,7 +155,7 @@ public abstract class RelationMiner {
             }
 
             /* Update the beams */
-            beams = best_candidates;
+            beams = top_candidates;
         }
     }
 
@@ -184,7 +183,7 @@ public abstract class RelationMiner {
         }
 
         /* Add existing LVs (case 1 and 2) */
-        final Collection<KbRelation> relations = kb.getRelations();
+        final SimpleRelation[] relations = kb.getRelations();
         for (int var_id = 0; var_id < rule.usedLimitedVars(); var_id++) {
             /* Case 1 */
             for (ArgLocation vacant: empty_args) {
@@ -194,11 +193,11 @@ public abstract class RelationMiner {
             }
 
             /* Case 2 */
-            for (KbRelation relation: relations) {
-                for (int arg_idx = 0; arg_idx < relation.getArity(); arg_idx++) {
+            for (SimpleRelation relation: relations) {
+                for (int arg_idx = 0; arg_idx < relation.totalCols(); arg_idx++) {
                     final Rule new_rule = rule.clone();
                     final UpdateStatus update_status = new_rule.cvt1Uv2ExtLv(
-                            relation.getNumeration(), relation.getArity(), arg_idx, var_id
+                            relation.id, relation.totalCols(), arg_idx, var_id
                     );
                     added_candidate_cnt += checkThenAddRule(update_status, new_rule, rule, candidates);
                 }
@@ -212,7 +211,7 @@ public abstract class RelationMiner {
             final Predicate predicate1 = rule.getPredicate(empty_arg_loc_1.predIdx);
 
             /* Case 5 */
-            final int[] const_list = kb.getPromisingConstants(predicate1.functor)[empty_arg_loc_1.argIdx];
+            final int[] const_list = kb.getPromisingConstants(predicate1.predSymbol)[empty_arg_loc_1.argIdx];
             for (int constant: const_list) {
                 final Rule new_rule = rule.clone();
                 final UpdateStatus update_status = new_rule.cvt1Uv2Const(
@@ -233,11 +232,11 @@ public abstract class RelationMiner {
             }
 
             /* Case 4 */
-            for (KbRelation relation: relations) {
-                for (int arg_idx = 0; arg_idx < relation.getArity(); arg_idx++) {
+            for (SimpleRelation relation: relations) {
+                for (int arg_idx = 0; arg_idx < relation.totalCols(); arg_idx++) {
                     final Rule new_rule = rule.clone();
                     final UpdateStatus update_status = new_rule.cvt2Uvs2NewLv(
-                            relation.getNumeration(), relation.getArity(), arg_idx, empty_arg_loc_1.predIdx, empty_arg_loc_1.argIdx
+                            relation.id, relation.totalCols(), arg_idx, empty_arg_loc_1.predIdx, empty_arg_loc_1.argIdx
                     );
                     added_candidate_cnt += checkThenAddRule(update_status, new_rule, rule, candidates);
                 }
@@ -290,23 +289,21 @@ public abstract class RelationMiner {
             case NORMAL:
                 if (updatedRule.getEval().value(evalMetric) > originalRule.getEval().value(evalMetric)) {
                     updated_is_better = true;
-                    if (null == candidates[0]) {
-                        candidates[0] = updatedRule;
-                    } else {
-                        int worst_candidate_idx = 0;
-                        double lowest_score = candidates[0].getEval().value(evalMetric);
-                        for (int i = 1; i < candidates.length; i++) {
-                            if (null == candidates[i]) {
-                                worst_candidate_idx = i;
-                                break;
-                            }
-                            double candidate_socre = candidates[i].getEval().value(evalMetric);
-                            if (lowest_score > candidate_socre) {
-                                worst_candidate_idx = i;
-                                lowest_score = candidate_socre;
-                            }
+                    int replace_idx = -1;
+                    double replaced_score = updatedRule.getEval().value(evalMetric);
+                    for (int i = 0; i < candidates.length; i++) {
+                        if (null == candidates[i]) {
+                            replace_idx = i;
+                            break;
                         }
-                        candidates[worst_candidate_idx] = updatedRule;
+                        double candidate_socre = candidates[i].getEval().value(evalMetric);
+                        if (replaced_score > candidate_socre) {
+                            replace_idx = i;
+                            replaced_score = candidate_socre;
+                        }
+                    }
+                    if (0 <= replace_idx) {
+                        candidates[replace_idx] = updatedRule;
                     }
                 }
                 break;
@@ -342,7 +339,7 @@ public abstract class RelationMiner {
         EvidenceBatch evidence_batch = rule.getEvidenceAndMarkEntailment();
         for (int[][] grounding: evidence_batch.evidenceList) {
             final Predicate head_pred = new Predicate(
-                    evidence_batch.relationsInRule[Rule.HEAD_PRED_IDX], grounding[Rule.HEAD_PRED_IDX]
+                    evidence_batch.predicateSymbolsInRule[Rule.HEAD_PRED_IDX], grounding[Rule.HEAD_PRED_IDX]
             );
             final GraphNode<Predicate> head_node = predicate2NodeMap.computeIfAbsent(
                     head_pred, k -> new GraphNode<>(head_pred)
@@ -357,7 +354,7 @@ public abstract class RelationMiner {
                 } else {
                     for (int pred_idx = Rule.FIRST_BODY_PRED_IDX; pred_idx < grounding.length; pred_idx++) {
                         final Predicate body_pred = new Predicate(
-                                evidence_batch.relationsInRule[pred_idx], grounding[pred_idx]
+                                evidence_batch.predicateSymbolsInRule[pred_idx], grounding[pred_idx]
                         );
                         final GraphNode<Predicate> body_node = predicate2NodeMap.computeIfAbsent(
                                 body_pred, kk -> new GraphNode<>(body_pred)
@@ -378,14 +375,15 @@ public abstract class RelationMiner {
     public void run() throws KbException {
         Rule rule;
         int covered_facts = 0;
-        final int total_facts = kb.getRelation(targetRelation).totalRecords();
+        final int total_facts = kb.getRelation(targetRelation).totalRows();
         while (!SInC.interrupted && (null != (rule = findRule()))) {
             hypothesis.add(rule);
             updateKbAndDependencyGraph(rule);
+            rule.releaseMemory();
             covered_facts += rule.getEval().getPosEtls();
             logger.printf(
                     "Found (Coverage: %.2f%%, %d/%d): %s\n", covered_facts * 100.0 / total_facts, covered_facts, total_facts,
-                    rule.toDumpString(kb.getNumerationMap())
+                    rule.toDumpString(kb)
             );
         }
         logger.println("Done");

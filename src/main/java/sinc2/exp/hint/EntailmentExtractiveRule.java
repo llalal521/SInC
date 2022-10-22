@@ -1,11 +1,12 @@
 package sinc2.exp.hint;
 
 import sinc2.common.Predicate;
-import sinc2.impl.base.CacheEntry;
+import sinc2.common.Record;
 import sinc2.impl.base.CachedRule;
+import sinc2.impl.base.CompliedBlock;
 import sinc2.kb.KbException;
-import sinc2.kb.KbRelation;
-import sinc2.kb.NumeratedKb;
+import sinc2.kb.SimpleKb;
+import sinc2.kb.SimpleRelation;
 import sinc2.rule.Fingerprint;
 import sinc2.rule.Rule;
 import sinc2.util.MultiSet;
@@ -21,14 +22,14 @@ public class EntailmentExtractiveRule extends CachedRule {
 
     public EntailmentExtractiveRule(
             int headRelNum, int arity, Set<Fingerprint> fingerprintCache,
-            Map<MultiSet<Integer>, Set<Fingerprint>> category2TabuSetMap, NumeratedKb kb
+            Map<MultiSet<Integer>, Set<Fingerprint>> category2TabuSetMap, SimpleKb kb
     ) {
         super(headRelNum, arity, fingerprintCache, category2TabuSetMap, kb);
     }
 
     public EntailmentExtractiveRule(
             List<Predicate> structure, Set<Fingerprint> fingerprintCache,
-            Map<MultiSet<Integer>, Set<Fingerprint>> category2TabuSetMap, NumeratedKb kb
+            Map<MultiSet<Integer>, Set<Fingerprint>> category2TabuSetMap, SimpleKb kb
     ) {
         super(structure, fingerprintCache, category2TabuSetMap, kb);
     }
@@ -45,10 +46,20 @@ public class EntailmentExtractiveRule extends CachedRule {
     /**
      * Extract positive entailments to a relation.
      */
-    public void extractPositiveEntailments(KbRelation relation) throws KbException {
-        for (CacheEntry entry: posCache) {
-            relation.addRecords(entry.entry.get(0).complSet);
+    public void extractPositiveEntailments(SimpleRelation relation) throws KbException {
+        Set<Record> pos_entails = new HashSet<>();
+        for (List<CompliedBlock> entry: posCache) {
+            for (int[] record: entry.get(0).complSet) {
+                pos_entails.add(new Record(record));
+            }
         }
+        int[][] entailed_records = new int[pos_entails.size()][];
+        int i = 0;
+        for (Record record: pos_entails) {
+            entailed_records[i] = record.args;
+            i++;
+        }
+        relation.setAllAsEntailed(entailed_records);
     }
 
     /**
@@ -58,7 +69,7 @@ public class EntailmentExtractiveRule extends CachedRule {
     protected void add2TabuSet() {
         final MultiSet<Integer> functor_mset = new MultiSet<>();
         for (int pred_idx = Rule.FIRST_BODY_PRED_IDX; pred_idx < structure.size(); pred_idx++) {
-            functor_mset.add(structure.get(pred_idx).functor);
+            functor_mset.add(structure.get(pred_idx).predSymbol);
         }
         final Set<Fingerprint> tabu_set = category2TabuSetMap.computeIfAbsent(
                 functor_mset, k -> Collections.synchronizedSet(new HashSet<>())

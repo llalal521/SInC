@@ -1,11 +1,9 @@
 package sinc2.exp.hint.predefined;
 
-import sinc2.kb.Record;
+import sinc2.kb.SimpleRelation;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Template miner for:
@@ -16,29 +14,23 @@ import java.util.Set;
  */
 public class ReflexiveMiner extends TemplateMiner {
     @Override
-    public List<MatchedRule> matchTemplate(
-            List<Set<Record>> relations, List<Set<Record>> positiveEntailments, List<String> functorNames
-    ) {
+    public List<MatchedRule> matchTemplate(SimpleRelation[] relations) {
         List<MatchedRule> matched_rules = new ArrayList<>();
-        for (int h = 0; h < relations.size(); h++) {
-            Set<Record> head = relations.get(h);
-            if (head.isEmpty() || 2 != head.iterator().next().args.length) {
+        for (SimpleRelation head : relations) {
+            if (2 != head.totalCols()) {
                 continue;
             }
 
             /* Find entailments */
-            Set<Record> entailments = new HashSet<>();
-            for (Record record: head) {
-                if (record.args[0] == record.args[1]) {
+            List<int[]> entailments = new ArrayList<>();
+            for (int[] record : head) {
+                if (record[0] == record[1]) {
                     entailments.add(record);
                 }
             }
 
             /* Match head & check validness */
-            checkThenAdd(
-                    head, positiveEntailments.get(h), entailments, matched_rules,
-                    String.format("%s(X,X):-", functorNames.get(h))
-            );
+            checkThenAdd(head, entailments.toArray(new int[0][]), matched_rules, head.name + "(X,X):-");
         }
         return matched_rules;
     }

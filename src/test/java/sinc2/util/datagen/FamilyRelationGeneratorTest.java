@@ -4,7 +4,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import sinc2.kb.KbException;
-import sinc2.kb.NumeratedKb;
+import sinc2.util.kb.NumeratedKb;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -12,7 +12,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Paths;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FamilyRelationGeneratorTest {
     static final String MEM_DIR = "/dev/shm";

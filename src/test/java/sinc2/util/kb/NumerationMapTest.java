@@ -1,4 +1,4 @@
-package sinc2.kb;
+package sinc2.util.kb;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;

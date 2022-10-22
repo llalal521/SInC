@@ -1,7 +1,8 @@
-package sinc2.kb;
+package sinc2.util.kb;
 
 import sinc2.common.Argument;
-import sinc2.util.MultiSet;
+import sinc2.common.Record;
+import sinc2.kb.KbException;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,8 +14,8 @@ import java.util.*;
  * The in-memory KB. Name strings are converted to integer numbers to reduce memory cost and improve processing efficiency.
  * A KB is a set of 'NumeratedRelation'. A KB can be dumped into the local file system. A dumped KB is a directory (named
  * by the KB name) that contains multiple files:
- *   - The numeration mapping file: Please refer to class 'sinc2.kb.NumerationMap'
- *   - The relation files: Please refer to class 'sinc2.kb.KbRelation'
+ *   - The numeration mapping file: Please refer to class 'sinc2.util.kb.NumerationMap'
+ *   - The relation files: Please refer to class 'sinc2.util.kb.KbRelation'
  *   - Meta information files:
  *       - There may be multiple files with extension `.meta` to store arbitrary meta information of the KB.
  *       - The files are customized by other utilities and are not in a fixed format.
@@ -22,6 +23,8 @@ import java.util.*;
  * Note: the arguments in a record should be encoded values by "constant()/variable" methods in the "Argument" class.
  *
  * @since 2.0
+ * @see NumerationMap
+ * @see KbRelation
  */
 public class NumeratedKb {
 
@@ -31,8 +34,6 @@ public class NumeratedKb {
     protected final Map<Integer, KbRelation> relationMap = new HashMap<>();
     /** The numeration map */
     protected NumerationMap numMap;
-    /** The set of all constants in the KB */
-    protected MultiSet<Integer> constants;
 
     /**
      * Get the path for the files where the KB is dumped.
@@ -53,7 +54,6 @@ public class NumeratedKb {
     public NumeratedKb(String name) {
         this.name = name;
         this.numMap = new NumerationMap();
-        this.constants = new MultiSet<>();
     }
 
     /**
@@ -70,7 +70,6 @@ public class NumeratedKb {
         File kb_dir = getKbPath(name, basePath).toFile();
         String kb_dir_path = kb_dir.getAbsolutePath();
         this.numMap = new NumerationMap(kb_dir_path);
-        this.constants = new MultiSet<>();
         loadAllRelationsHandler(kb_dir, false);
     }
 
@@ -89,7 +88,6 @@ public class NumeratedKb {
         File kb_dir = getKbPath(name, basePath).toFile();
         String kb_dir_path = kb_dir.getAbsolutePath();
         this.numMap = new NumerationMap(kb_dir_path);
-        this.constants = new MultiSet<>();
         loadAllRelationsHandler(kb_dir, check);
     }
 
@@ -104,7 +102,6 @@ public class NumeratedKb {
             relationMap.put(entry.getKey(), new KbRelation(entry.getValue()));
         }
         numMap = new NumerationMap(another.numMap);
-        constants = new MultiSet<>(another.constants);
     }
 
     /**
@@ -125,13 +122,6 @@ public class NumeratedKb {
                             kb_dir_path, check ? numMap : null
                     );
                     relationMap.put(relation.getNumeration(), relation);
-
-                    /* Load Constants */
-                    for (Record record: relation) {
-                        for (int argument: record.args) {
-                            constants.add(Argument.decode(argument));
-                        }
-                    }
                 }
             }
         }
@@ -205,13 +195,6 @@ public class NumeratedKb {
         }
         KbRelation relation = new KbRelation(relName, num, arity, totalRecords, relBasePath, check ? numMap:null);
         relationMap.put(num, relation);
-
-        /* Load Constants */
-        for (Record record: relation) {
-            for (int argument: record.args) {
-                constants.add(Argument.decode(argument));
-            }
-        }
         return relation;
     }
 
@@ -234,16 +217,7 @@ public class NumeratedKb {
     }
 
     protected KbRelation deleteRelationHandler(int relNum) {
-        KbRelation relation = relationMap.remove(relNum);
-        if (null != relation) {
-            /* Remove Constants */
-            for (Record record: relation) {
-                for (int argument: record.args) {
-                    constants.remove(Argument.decode(argument));
-                }
-            }
-        }
-        return relation;
+        return relationMap.remove(relNum);
     }
 
     /**
@@ -651,9 +625,6 @@ public class NumeratedKb {
      */
     protected void addRecordHandler(KbRelation relation, Record record) throws KbException {
         relation.addRecord(record);
-        for (int argument: record.args) {
-            constants.add(Argument.decode(argument));
-        }
     }
 
     /**
@@ -724,9 +695,6 @@ public class NumeratedKb {
 
     protected void removeRecordHandler(KbRelation relation, Record record) {
         relation.removeRecord(record);
-        for (int argument: record.args) {
-            constants.remove(Argument.decode(argument));
-        }
     }
 
     /**
@@ -877,52 +845,6 @@ public class NumeratedKb {
      */
     public void tidyUp() throws KbException {
         throw new KbException("Not Implemented");
-    }
-
-    /**
-     * Set a record as entailed in the KB.
-     */
-    public void setAsEntailed(int relNum, int[] record) throws KbException {
-        KbRelation relation = getRelation(relNum);
-        if (null != relation) {
-            relation.entailRecord(new Record(record));
-        }
-    }
-
-    /**
-     * Check whether a record has been entailed in the KB.
-     */
-    public boolean recordIsEntailed(int relNum, int[] record) {
-        KbRelation relation = getRelation(relNum);
-        return null != relation && relation.recordIsEntailed(new Record(record));
-    }
-
-    /**
-     * Calculate the promising constants of each relation.
-     */
-    public void updatePromisingConstants() {
-        for (KbRelation relation: getRelations()) {
-            relation.updatePromisingConstants();
-        }
-    }
-
-    /**
-     * Get the promising constants in the relation. NULL if the relation is not in the KB or the constants are not
-     * calculated.
-     */
-    public int[][] getPromisingConstants(int relNum) {
-        KbRelation relation = getRelation(relNum);
-        if (null != relation) {
-            return relation.getPromisingConstants();
-        }
-        return null;
-    }
-
-    /**
-     * Get all constant numerations appeared in the KB.
-     */
-    public Set<Integer> getAllConstants() {
-        return constants.distinctValues();
     }
 
     @Override

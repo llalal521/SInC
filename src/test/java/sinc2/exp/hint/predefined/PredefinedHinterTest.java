@@ -7,22 +7,23 @@ import sinc2.common.ParsedPred;
 import sinc2.common.Predicate;
 import sinc2.exp.hint.ExperimentException;
 import sinc2.kb.KbException;
-import sinc2.kb.NumeratedKb;
-import sinc2.kb.NumerationMap;
 import sinc2.rule.BareRule;
 import sinc2.rule.Fingerprint;
 import sinc2.rule.Rule;
 import sinc2.rule.RuleParseException;
 import sinc2.util.MultiSet;
+import sinc2.util.kb.NumeratedKb;
+import sinc2.util.kb.NumerationMap;
 
 import java.io.*;
 import java.nio.file.Paths;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PredefinedHinterTest {
-    static final String MEM_DIR = "D:\\sjtu\\KB_proj\\mem_cache";
+    static final String MEM_DIR = "/dev/shm";
 
     @Test
     void testRun1() throws KbException, IOException, ExperimentException, RuleParseException {
@@ -78,9 +79,8 @@ class PredefinedHinterTest {
         hint_writer.println("Dual");
         hint_writer.close();
 
-        PredefinedHinter pHinter=new PredefinedHinter();
         String[] main_args={MEM_DIR, KB_NAME, hint_file.getAbsolutePath()};
-        pHinter.main(main_args);
+        PredefinedHinter.main(main_args);
 
 
         Set<Fingerprint> cache = new HashSet<>();
@@ -89,7 +89,7 @@ class PredefinedHinterTest {
         expected_rules.add(parseBareRule("child(X,Y):-mother(Y,X)", kb.getNumerationMap(), cache, tabu));
         expected_rules.add(parseBareRule("child(X,Y):-father(Y,X)", kb.getNumerationMap(), cache, tabu));
 
-        String rules_root = pHinter.getOutputDirPath(hint_file.getAbsolutePath(), KB_NAME);
+        String rules_root = PredefinedHinter.getOutputDirPath(hint_file.getAbsolutePath(), KB_NAME);
         File rules_file=Paths.get(rules_root,"rules_Dual.tsv").toFile();
         BufferedReader reader = new BufferedReader(new FileReader(rules_file));
         String line = reader.readLine();    // read the title line
@@ -101,8 +101,8 @@ class PredefinedHinterTest {
 
         /* Remove test files */
         deleteDir(Paths.get(MEM_DIR, KB_NAME).toFile());
-        hint_file.delete();
-        rules_file.delete();
+        assertTrue(hint_file.delete());
+        assertTrue(rules_file.delete());
     }
 
     @Test
@@ -164,9 +164,8 @@ class PredefinedHinterTest {
         hint_writer.println("Reflexive");
         hint_writer.close();
 
-        PredefinedHinter pHinter=new PredefinedHinter();
         String[] main_args={MEM_DIR, KB_NAME, hint_file.getAbsolutePath()};
-        pHinter.main(main_args);
+        PredefinedHinter.main(main_args);
 
 
         Set<Fingerprint> cache = new HashSet<>();
@@ -174,7 +173,7 @@ class PredefinedHinterTest {
         Set<Rule> expected_rules = new HashSet<>();
         expected_rules.add(parseBareRule("self(X,X):-", kb.getNumerationMap(), cache, tabu));
 
-        String rules_root = pHinter.getOutputDirPath(hint_file.getAbsolutePath(), KB_NAME);
+        String rules_root = PredefinedHinter.getOutputDirPath(hint_file.getAbsolutePath(), KB_NAME);
         File rules_file=Paths.get(rules_root,"rules_Reflexive.tsv").toFile();
         BufferedReader reader = new BufferedReader(new FileReader(rules_file));
         String line = reader.readLine();    // read the title line
@@ -186,8 +185,8 @@ class PredefinedHinterTest {
 
         /* Remove test files */
         deleteDir(Paths.get(MEM_DIR, KB_NAME).toFile());
-        hint_file.delete();
-        rules_file.delete();
+        assertTrue(hint_file.delete());
+        assertTrue(rules_file.delete());
     }
 
     @Test
@@ -247,10 +246,8 @@ class PredefinedHinterTest {
         hint_writer.println("Subsumption");
         hint_writer.close();
 
-        PredefinedHinter pHinter=new PredefinedHinter();
         String[] main_args={MEM_DIR, KB_NAME, hint_file.getAbsolutePath()};
-        pHinter.main(main_args);
-
+        PredefinedHinter.main(main_args);
 
         Set<Fingerprint> cache = new HashSet<>();
         Map<MultiSet<Integer>, Set<Fingerprint>> tabu = new HashMap<>();
@@ -258,7 +255,7 @@ class PredefinedHinterTest {
         expected_rules.add(parseBareRule("parent(X,Y):-mother(X,Y)", kb.getNumerationMap(), cache, tabu));
         expected_rules.add(parseBareRule("parent(X,Y):-father(X,Y)", kb.getNumerationMap(), cache, tabu));
 
-        String rules_root = pHinter.getOutputDirPath(hint_file.getAbsolutePath(), KB_NAME);
+        String rules_root = PredefinedHinter.getOutputDirPath(hint_file.getAbsolutePath(), KB_NAME);
         File rules_file=Paths.get(rules_root,"rules_Subsumption.tsv").toFile();
         BufferedReader reader = new BufferedReader(new FileReader(rules_file));
         String line = reader.readLine();    // read the title line
@@ -270,8 +267,8 @@ class PredefinedHinterTest {
 
         /* Remove test files */
         deleteDir(Paths.get(MEM_DIR, KB_NAME).toFile());
-        hint_file.delete();
-        rules_file.delete();
+        assertTrue(hint_file.delete());
+        assertTrue(rules_file.delete());
     }
 
     @Test
@@ -281,7 +278,7 @@ class PredefinedHinterTest {
          *   father(X,Y):-couple(X,Z),mother(Z,Y)
          *   child(X,Y):-couple(Y,Z),mother(Z,X)
          *   mother(X,Y):-child(Y,Z),couple(Z,X)
-         *   child(X,Y):-child(X,Z),couple(Z,Y) ??
+         *   child(X,Y):-child(X,Z),couple(Z,Y)
          */
 
         final String KB_NAME = "HinterTest-" + UUID.randomUUID();
@@ -332,9 +329,8 @@ class PredefinedHinterTest {
         hint_writer.println("Transition");
         hint_writer.close();
 
-        PredefinedHinter pHinter=new PredefinedHinter();
         String[] main_args={MEM_DIR, KB_NAME, hint_file.getAbsolutePath()};
-        pHinter.main(main_args);
+        PredefinedHinter.main(main_args);
 
 
         Set<Fingerprint> cache = new HashSet<>();
@@ -343,9 +339,9 @@ class PredefinedHinterTest {
         expected_rules.add(parseBareRule("father(X,Y):-couple(X,Z),mother(Z,Y)", kb.getNumerationMap(), cache, tabu));
         expected_rules.add(parseBareRule("child(X,Y):-couple(Y,Z),mother(Z,X)", kb.getNumerationMap(), cache, tabu));
         expected_rules.add(parseBareRule("mother(X,Y):-child(Y,Z),couple(Z,X)", kb.getNumerationMap(), cache, tabu));
-        //expected_rules.add(parseBareRule("child(X,Y):-child(X,Z),couple(Z,Y)", kb.getNumerationMap(), cache, tabu));
+        expected_rules.add(parseBareRule("child(X,Y):-child(X,Z),couple(Z,Y)", kb.getNumerationMap(), cache, tabu));
 
-        String rules_root = pHinter.getOutputDirPath(hint_file.getAbsolutePath(), KB_NAME);
+        String rules_root = PredefinedHinter.getOutputDirPath(hint_file.getAbsolutePath(), KB_NAME);
         File rules_file=Paths.get(rules_root,"rules_Transition.tsv").toFile();
         BufferedReader reader = new BufferedReader(new FileReader(rules_file));
         String line = reader.readLine();    // read the title line
@@ -357,8 +353,8 @@ class PredefinedHinterTest {
 
         /* Remove test files */
         deleteDir(Paths.get(MEM_DIR, KB_NAME).toFile());
-        hint_file.delete();
-        rules_file.delete();
+        assertTrue(hint_file.delete());
+        assertTrue(rules_file.delete());
     }
 
     @Test
@@ -385,7 +381,7 @@ class PredefinedHinterTest {
         final int FATHER_ARITY = 2;
         final int MOTHER_ARITY = 2;
         final int CHILD_ARITY = 2;
-        final int FAMILIES = 10;
+        final int FAMILIES = 100;
         final String DAD = "dad";
         final String MOM = "mom";
         final String SON = "son";
@@ -422,9 +418,8 @@ class PredefinedHinterTest {
         hint_writer.println("SharedSourceSink");
         hint_writer.close();
 
-        PredefinedHinter pHinter=new PredefinedHinter();
         String[] main_args={MEM_DIR, KB_NAME, hint_file.getAbsolutePath()};
-        pHinter.main(main_args);
+        PredefinedHinter.main(main_args);
 
 
         Set<Fingerprint> cache = new HashSet<>();
@@ -437,7 +432,7 @@ class PredefinedHinterTest {
         expected_rules.add(parseBareRule("couple(X,Y):-father(X,Z),mother(Y,Z)", kb.getNumerationMap(), cache, tabu));
         expected_rules.add(parseBareRule("couple(X,Y):-child_f(Z,X),child_m(Z,Y)", kb.getNumerationMap(), cache, tabu));
 
-        String rules_root = pHinter.getOutputDirPath(hint_file.getAbsolutePath(), KB_NAME);
+        String rules_root = PredefinedHinter.getOutputDirPath(hint_file.getAbsolutePath(), KB_NAME);
         File rules_file=Paths.get(rules_root,"rules_SharedSourceSink.tsv").toFile();
         BufferedReader reader = new BufferedReader(new FileReader(rules_file));
         String line = reader.readLine();    // read the title line
@@ -449,8 +444,8 @@ class PredefinedHinterTest {
 
         /* Remove test files */
         deleteDir(Paths.get(MEM_DIR, KB_NAME).toFile());
-        hint_file.delete();
-        rules_file.delete();
+        assertTrue(hint_file.delete());
+        assertTrue(rules_file.delete());
     }
     BareRule parseBareRule(String str, NumerationMap numMap, Set<Fingerprint> cache, Map<MultiSet<Integer>, Set<Fingerprint>> tabu) throws RuleParseException {
         List<ParsedPred> parsed_structure = Rule.parseStructure(str);
@@ -533,9 +528,8 @@ class PredefinedHinterTest {
         hint_writer.println("TypeInference");
         hint_writer.close();
 
-        PredefinedHinter pHinter=new PredefinedHinter();
         String[] main_args={MEM_DIR, KB_NAME, hint_file.getAbsolutePath()};
-        pHinter.main(main_args);
+        PredefinedHinter.main(main_args);
 
 
         Set<Fingerprint> cache = new HashSet<>();
@@ -546,7 +540,7 @@ class PredefinedHinterTest {
         expected_rules.add(parseBareRule("kid(X):-mother(Y,X)", kb.getNumerationMap(), cache, tabu));
         expected_rules.add(parseBareRule("kid(X):-family(Y,Z,X)", kb.getNumerationMap(), cache, tabu));
 
-        String rules_root = pHinter.getOutputDirPath(hint_file.getAbsolutePath(), KB_NAME);
+        String rules_root = PredefinedHinter.getOutputDirPath(hint_file.getAbsolutePath(), KB_NAME);
         File rules_file=Paths.get(rules_root,"rules_TypeInference.tsv").toFile();
         BufferedReader reader = new BufferedReader(new FileReader(rules_file));
         String line = reader.readLine();    // read the title line
@@ -558,8 +552,8 @@ class PredefinedHinterTest {
 
         /* Remove test files */
         deleteDir(Paths.get(MEM_DIR, KB_NAME).toFile());
-        hint_file.delete();
-        rules_file.delete();
+        assertTrue(hint_file.delete());
+        assertTrue(rules_file.delete());
     }
     private void deleteDir(File file) {
         File[] contents = file.listFiles();
@@ -568,7 +562,7 @@ class PredefinedHinterTest {
                 deleteDir(f);
             }
         }
-        file.delete();
+        assertTrue(file.delete());
     }
 
 }

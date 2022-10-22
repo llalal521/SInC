@@ -1,8 +1,8 @@
 package sinc2;
 
-import sinc2.kb.CompressedKb;
 import sinc2.kb.KbException;
-import sinc2.kb.NumeratedKb;
+import sinc2.kb.SimpleCompressedKb;
+import sinc2.kb.SimpleKb;
 
 /**
  * The recovery class, retuning a compressed KB to the original version.
@@ -15,5 +15,5 @@ public abstract class SincRecovery {
      *
      * @param decompressedName The name of the decompressed KB.
      */
-    abstract public NumeratedKb recover(CompressedKb compressedKb, String decompressedName) throws KbException;
+    abstract public SimpleKb recover(SimpleCompressedKb compressedKb, String decompressedName) throws KbException;
 }

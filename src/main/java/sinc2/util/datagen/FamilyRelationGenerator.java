@@ -1,7 +1,7 @@
 package sinc2.util.datagen;
 
 import sinc2.kb.KbException;
-import sinc2.kb.NumeratedKb;
+import sinc2.util.kb.NumeratedKb;
 
 import java.io.File;
 import java.io.IOException;

@@ -1,7 +1,8 @@
 package sinc2.exp.hint.predefined;
 
 import sinc2.exp.hint.ExperimentException;
-import sinc2.exp.hint.Hinter;
+import sinc2.kb.SimpleKb;
+import sinc2.kb.SimpleRelation;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -10,8 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * This class reads a hint template file and a KB to find evaluation of instantiated rules corresponding to several pre-
- * defined templates.
+ * This class reads a hint template file and a KB to find evaluation of instantiated rules corresponding to several
+ * pre-defined templates.
  *
  * The structure of the template file contains n+2 lines:
  *   - The first two lines are the settings of the thresholds of "Fact Coverage" and "τ". The output rules must satisfy
@@ -106,12 +107,13 @@ public class PredefinedHinter {
         System.out.flush();
 
         /* Match the templates */
+        SimpleRelation[] relations = kb.getRelations();
         for (int i = 0; i < template_names.size(); i++) {
             long time_miner_start = System.currentTimeMillis();
             String template_name = template_names.get(i);
             System.out.printf("Matching template (%d/%d): %s\n", i + 1, template_names.size(), template_name);
             TemplateMiner miner = TemplateMiner.TemplateType.getMinerByName(template_name);
-            List<MatchedRule> matched_rules = miner.matchTemplate(kb.relations, kb.relationEntailments, kb.relationNames);
+            List<MatchedRule> matched_rules = miner.matchTemplate(relations);
             miner.dumpResult(matched_rules, output_dir_path);
             long time_miner_done = System.currentTimeMillis();
             System.out.printf("Template matching done (Time Cost: %d s)\n", (time_miner_done - time_miner_start) / 1000);
@@ -121,12 +123,11 @@ public class PredefinedHinter {
         /* Calculate matching statistics */
         int total_records = 0;
         int total_covered_records = 0;
-        for (int i = 0; i < kb.relations.size(); i++) {
-            int relation_records = kb.relations.get(i).size();
-            int covered_records = kb.relationEntailments.get(i).size();
-            String rel_name = kb.relationNames.get(i);
+        for (SimpleRelation relation: relations) {
+            int relation_records = relation.totalRows();
+            int covered_records = relation.totalEntailedRecords();
             System.out.printf(
-                    "Relation Coverage: %s = %.2f%% (%d/%d)\n", rel_name,
+                    "Relation Coverage: %s = %.2f%% (%d/%d)\n", relation.name,
                     covered_records * 100.0 / relation_records, covered_records, relation_records
             );
             total_records += relation_records;

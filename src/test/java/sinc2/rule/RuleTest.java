@@ -6,12 +6,11 @@ import sinc2.common.Argument;
 import sinc2.common.ParsedArg;
 import sinc2.common.ParsedPred;
 import sinc2.common.Predicate;
-import sinc2.impl.base.CachedRule;
 import sinc2.kb.KbException;
-import sinc2.kb.KbRelation;
-import sinc2.kb.NumeratedKb;
-import sinc2.kb.NumerationMap;
 import sinc2.util.MultiSet;
+import sinc2.util.kb.KbRelation;
+import sinc2.util.kb.NumeratedKb;
+import sinc2.util.kb.NumerationMap;
 
 import java.util.*;
 

@@ -5,7 +5,10 @@ import sinc2.common.Argument;
 import sinc2.common.Predicate;
 import sinc2.util.MultiSet;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * The fingerprint class that quickly tells whether two rules are equivalent.
@@ -86,23 +89,23 @@ public class Fingerprint {
 
         /* Construct equivalence classes */
         for (Predicate predicate : rule) {
-            PredicateWithClass pred_with_class = new PredicateWithClass(predicate.functor, predicate.arity());
+            PredicateWithClass pred_with_class = new PredicateWithClass(predicate.predSymbol, predicate.arity());
             for (int arg_idx = 0; arg_idx < predicate.arity(); arg_idx++) {
                 int argument = predicate.args[arg_idx];
                 if (Argument.isEmpty(argument)) {
                     MultiSet<ArgIndicator> eqc = new MultiSet<>();
-                    eqc.add(ArgIndicator.getVariableIndicator(predicate.functor, arg_idx));
+                    eqc.add(ArgIndicator.getVariableIndicator(predicate.predSymbol, arg_idx));
                     equivalenceClasses.add(eqc);
                     pred_with_class.classArgs[arg_idx] = eqc;
                 } else if (Argument.isVariable(argument)) {
                     int var_id = Argument.decode(argument);
                     MultiSet<ArgIndicator> eqc = lv_equiv_classes[var_id];
-                    eqc.add(ArgIndicator.getVariableIndicator(predicate.functor, arg_idx));
+                    eqc.add(ArgIndicator.getVariableIndicator(predicate.predSymbol, arg_idx));
                     pred_with_class.classArgs[arg_idx] = eqc;
                 } else {
                     int constant = Argument.decode(argument);
                     MultiSet<ArgIndicator> eqc = new MultiSet<>();
-                    eqc.add(ArgIndicator.getVariableIndicator(predicate.functor, arg_idx));
+                    eqc.add(ArgIndicator.getVariableIndicator(predicate.predSymbol, arg_idx));
                     eqc.add(ArgIndicator.getConstantIndicator(constant));
                     equivalenceClasses.add(eqc);
                     pred_with_class.classArgs[arg_idx] = eqc;
