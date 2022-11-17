@@ -1,5 +1,6 @@
 package sinc2.exp.hint.predefined;
 
+import sinc2.exp.hint.HinterKb;
 import sinc2.kb.SimpleRelation;
 
 import java.util.ArrayList;
@@ -14,7 +15,8 @@ import java.util.List;
  */
 public class ReflexiveMiner extends TemplateMiner {
     @Override
-    public List<MatchedRule> matchTemplate(SimpleRelation[] relations) {
+    public List<MatchedRule> matchTemplate(HinterKb kb) {
+        SimpleRelation[] relations = kb.getRelations();
         List<MatchedRule> matched_rules = new ArrayList<>();
         for (SimpleRelation head : relations) {
             if (2 != head.totalCols()) {

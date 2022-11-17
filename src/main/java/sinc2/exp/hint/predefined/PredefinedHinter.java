@@ -1,7 +1,7 @@
 package sinc2.exp.hint.predefined;
 
 import sinc2.exp.hint.ExperimentException;
-import sinc2.kb.SimpleKb;
+import sinc2.exp.hint.HinterKb;
 import sinc2.kb.SimpleRelation;
 
 import java.io.*;
@@ -101,19 +101,18 @@ public class PredefinedHinter {
         System.out.flush();
 
         /* Load KB */
-        SimpleKb kb = new SimpleKb(kb_name, kb_path);
+        HinterKb kb = new HinterKb(kb_name, kb_path, TemplateMiner.COVERAGE_THRESHOLD);
         long time_kb_loaded = System.currentTimeMillis();
         System.out.printf("KB Loaded: %d s\n", (time_kb_loaded - time_start) / 1000);
         System.out.flush();
 
         /* Match the templates */
-        SimpleRelation[] relations = kb.getRelations();
         for (int i = 0; i < template_names.size(); i++) {
             long time_miner_start = System.currentTimeMillis();
             String template_name = template_names.get(i);
             System.out.printf("Matching template (%d/%d): %s\n", i + 1, template_names.size(), template_name);
             TemplateMiner miner = TemplateMiner.TemplateType.getMinerByName(template_name);
-            List<MatchedRule> matched_rules = miner.matchTemplate(relations);
+            List<MatchedRule> matched_rules = miner.matchTemplate(kb);
             miner.dumpResult(matched_rules, output_dir_path);
             long time_miner_done = System.currentTimeMillis();
             System.out.printf("Template matching done (Time Cost: %d s)\n", (time_miner_done - time_miner_start) / 1000);
@@ -123,7 +122,7 @@ public class PredefinedHinter {
         /* Calculate matching statistics */
         int total_records = 0;
         int total_covered_records = 0;
-        for (SimpleRelation relation: relations) {
+        for (SimpleRelation relation: kb.getRelations()) {
             int relation_records = relation.totalRows();
             int covered_records = relation.totalEntailedRecords();
             System.out.printf(

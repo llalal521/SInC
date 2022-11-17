@@ -7,24 +7,24 @@ import java.util.*;
 
 /**
  * This class is for indexing a large 2D table of integers. The table is sorted according to each column. That is,
- * orderedRowsByCols[i] stores the references of the rows sorted, in ascending order, by the ith argument of each row.
+ * sortedRowsByCols[i] stores the references of the rows sorted, in ascending order, by the ith argument of each row.
  * valuesByCols[i] will be a 1D array of the values occur in the ith arguments of the rows, no duplication, sorted in
  * ascending order. The first n element (n is the number of rows in the table) in the 1D array startIdxByCols[i] stores
- * the first offset of the row in orderedRowsByCols[i] that the corresponding argument value occurs. That is, if
+ * the first offset of the row in sortedRowsByCols[i] that the corresponding argument value occurs. That is, if
  * startIdxByCols[i][j]=d, startIdxByCols[i][j+1]=e, and valuesByCols[i][j]=v, that means for these rows:
- *   orderedRowsByCols[i][d-1]
- *   orderedRowsByCols[i][d]
- *   orderedRowsByCols[i][d+1]
+ *   sortedRowsByCols[i][d-1]
+ *   sortedRowsByCols[i][d]
+ *   sortedRowsByCols[i][d+1]
  *   ...
- *   orderedRowsByCols[i][e-1]
- *   orderedRowsByCols[i][e]
+ *   sortedRowsByCols[i][e-1]
+ *   sortedRowsByCols[i][e]
  * the following holds:
- *   orderedRowsByCols[i][d-1][i]!=v
- *   orderedRowsByCols[i][d][i]=v
- *   orderedRowsByCols[i][d+1][i]=v
+ *   sortedRowsByCols[i][d-1][i]!=v
+ *   sortedRowsByCols[i][d][i]=v
+ *   sortedRowsByCols[i][d+1][i]=v
  *   ...
- *   orderedRowsByCols[i][e-1][i]=v
- *   orderedRowsByCols[i][e][i]!=v
+ *   sortedRowsByCols[i][e-1][i]=v
+ *   sortedRowsByCols[i][e][i]!=v
  * We also append one more element, n, to startIdxByCols[i] indicating the end of the rows.
  *
  * Suppose the memory cost of all rows is M, the total space of this type of index will be no more than 3M. The weakness
@@ -521,5 +521,60 @@ public class IntTable implements Iterable<int[]> {
 
     public int totalCols() {
         return totalCols;
+    }
+
+    public int minValue(int col) {
+        return valuesByCols[col][0];
+    }
+
+    public int maxValue(int col) {
+        int[] values = valuesByCols[col];
+        return values[values.length-1];
+    }
+
+    public static class SimInfo {
+        public final double simIJ;
+        public final double simJI;
+
+        public SimInfo(double simIJ, double simJI) {
+            this.simIJ = simIJ;
+            this.simJI = simJI;
+        }
+    }
+
+    /**
+     * Calculate the similarities between two columns in two tables. The similarity is defined as:
+     * sim(i, j) = intersection(i, j) / length(i)
+     * where intersection is the number of shared elements in columns i and j; length(i) is the length of column i.
+     */
+    public static SimInfo columnSimilarity(IntTable tabi, int coli, IntTable tabj, int colj) {
+        int[] values_i = tabi.valuesByCols[coli];
+        int[] offsets_i = tabi.startOffsetsByCols[coli];
+        int[] values_j = tabj.valuesByCols[colj];
+        int[] offsets_j = tabj.startOffsetsByCols[colj];
+        if (0 == values_i.length || 0 == values_j.length) {
+            return new SimInfo(0, 0);
+        }
+        int matched_in_i = 0;
+        int matched_in_j = 0;
+        int idx_i = 0;
+        int idx_j = 0;
+        while (idx_i < values_i.length && idx_j < values_j.length) {
+            int val_i = values_i[idx_i];
+            int val_j = values_j[idx_j];
+            if (val_i < val_j) {
+                idx_i = Arrays.binarySearch(values_i, idx_i + 1, values_i.length, val_j);
+                idx_i = (0 > idx_i) ? (-idx_i-1) : idx_i;
+            } else if (val_i > val_j) {
+                idx_j = Arrays.binarySearch(values_j, idx_j + 1, values_j.length, val_i);
+                idx_j = (0 > idx_j) ? (-idx_j-1) : idx_j;
+            } else {    // val_i == val_j
+                matched_in_i += offsets_i[idx_i + 1] - offsets_i[idx_i];
+                matched_in_j += offsets_j[idx_j + 1] - offsets_j[idx_j];
+                idx_i++;
+                idx_j++;
+            }
+        }
+        return new SimInfo(((double) matched_in_i) / tabi.totalRows, ((double) matched_in_j) / tabj.totalRows);
     }
 }

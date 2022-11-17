@@ -1,5 +1,6 @@
 package sinc2.exp.hint.predefined;
 
+import sinc2.exp.hint.HinterKb;
 import sinc2.kb.SimpleRelation;
 import sinc2.rule.Eval;
 import sinc2.rule.EvalMetric;
@@ -7,10 +8,7 @@ import sinc2.rule.EvalMetric;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.nio.file.Paths;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * This is the base class of all predefined template miners. Each miner should implement the "matchTemplate" method.
@@ -70,10 +68,10 @@ public abstract class TemplateMiner {
      * This method finds all instantiations complying the template and the threshold restrictions from given relations.
      * It also records the positive entailments in corresponding sets.
      *
-     * @param relations           The list of input relations
+     * @param kb The target KB
      * @return All matched rules and their evaluations
      */
-    public abstract List<MatchedRule> matchTemplate(SimpleRelation[] relations);
+    public abstract List<MatchedRule> matchTemplate(HinterKb kb);
 
     /**
      * Check whether a rule satisfies the mining restrictions. If it does, add the rule to the result list and add all
@@ -125,5 +123,4 @@ public abstract class TemplateMiner {
     public abstract int templateLength();
 
     public abstract String templateName();
-
 }

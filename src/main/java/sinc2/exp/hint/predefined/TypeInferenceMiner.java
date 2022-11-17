@@ -1,5 +1,6 @@
 package sinc2.exp.hint.predefined;
 
+import sinc2.exp.hint.HinterKb;
 import sinc2.kb.SimpleRelation;
 
 import java.util.ArrayList;
@@ -14,21 +15,24 @@ import java.util.List;
  */
 public class TypeInferenceMiner extends TemplateMiner {
     @Override
-    public List<MatchedRule> matchTemplate(SimpleRelation[] relations) {
+    public List<MatchedRule> matchTemplate(HinterKb kb) {
+        SimpleRelation[] relations = kb.getRelations();
         List<MatchedRule> matched_rules = new ArrayList<>();
 
         /* Check if there are type relations */
-        List<SimpleRelation> type_relations = new ArrayList<>();
+        boolean no_type_relation = true;
         for (SimpleRelation relation : relations) {
             if (1 == relation.totalCols()) {
-                type_relations.add(relation);
+                no_type_relation = false;
+                break;
             }
         }
-        if (type_relations.isEmpty()) {
+        if (no_type_relation) {
             return matched_rules;
         }
 
-        for (SimpleRelation relation_p : relations) {
+        for (int p = 0; p < relations.length; p++) {
+            SimpleRelation relation_p = relations[p];
             final int arity = relation_p.totalCols();
             if (1 >= arity) {
                 /* If the arity of p is also 1, the patterns are collided with subsumption */
@@ -38,18 +42,27 @@ public class TypeInferenceMiner extends TemplateMiner {
             /* Match for every argument */
             for (int arg_idx = 0; arg_idx < arity; arg_idx++) {
                 /* Find entailments */
-                int[] values = relation_p.valuesInColumn(arg_idx);
-                int[][] entailments = new int[values.length][];
-                for (int i = 0; i < values.length; i++) {
-                    entailments[i] = new int[]{values[i]};
+                int[][] entailments = null;
+                List<SimpleRelation> heads = new ArrayList<>();
+                for (HinterKb.ColInfo similar_col: kb.inverseSimilarCols(p, arg_idx)) {
+                    SimpleRelation head = relations[similar_col.relIdx];
+                    if (1 == head.totalCols()) {
+                        heads.add(head);
+                    }
                 }
-
-                /* Match types */
-                for (SimpleRelation head : type_relations) {
-                    checkThenAdd(
-                            head, entailments, matched_rules,
-                            typeInferenceRuleString(head.name, relation_p.name, arg_idx, arity)
-                    );
+                if (!heads.isEmpty()) {
+                    int[] values = relation_p.valuesInColumn(arg_idx);
+                    entailments = new int[values.length][];
+                    for (int i = 0; i < values.length; i++) {
+                        entailments[i] = new int[]{values[i]};
+                    }
+                    /* Match types */
+                    for (SimpleRelation head: heads) {
+                        checkThenAdd(
+                                head, entailments, matched_rules,
+                                typeInferenceRuleString(head.name, relation_p.name, arg_idx, arity)
+                        );
+                    }
                 }
             }
         }

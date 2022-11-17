@@ -1,9 +1,12 @@
 package sinc2.exp.hint.predefined;
 
+import sinc2.exp.hint.HinterKb;
 import sinc2.kb.SimpleRelation;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Template miner for:
@@ -17,25 +20,39 @@ public class SubsumptionMiner extends TemplateMiner {
     protected int arity = 0;
 
     @Override
-    public List<MatchedRule> matchTemplate(SimpleRelation[] relations) {
+    public List<MatchedRule> matchTemplate(HinterKb kb) {
+        SimpleRelation[] relations = kb.getRelations();
         List<MatchedRule> matched_rules = new ArrayList<>();
         for (int p = 0; p < relations.length; p++) {
             SimpleRelation relation_p = relations[p];
             arity = relation_p.totalCols();
 
             /* Match head & check validness */
-            for (int h = 0; h < relations.length; h++) {
-                if (h == p) {
-                    continue;
+            Set<Integer> rel_idxs = new HashSet<>();
+            for (HinterKb.ColInfo col_info: kb.inverseSimilarCols(p, 0)) {
+                if (0 == col_info.colIdx && relations[col_info.relIdx].totalCols() == arity) {
+                    rel_idxs.add(col_info.relIdx);
                 }
-                SimpleRelation head = relations[h];
-                if (relation_p.totalCols() != head.totalCols()) {
-                    continue;
+            }
+            rel_idxs.remove(p); // p should not be the same as q
+            for (int col_idx = 1; col_idx < arity; col_idx++) {
+                Set<Integer> tmp = new HashSet<>();
+                for (HinterKb.ColInfo col_info: kb.inverseSimilarCols(p, col_idx)) {
+                    if (col_idx == col_info.colIdx) {
+                        tmp.add(col_info.relIdx);
+                    }
                 }
-                checkThenAdd(
-                        head, relation_p.getAllRows().clone(), matched_rules,
-                        subsumptionRuleString(head.name, relation_p.name)
-                );
+                rel_idxs.removeIf(e -> !tmp.contains(e));
+            }
+            if (!rel_idxs.isEmpty()) {
+                int[][] entailments = relation_p.getAllRows().clone();
+                for (int h : rel_idxs) {
+                    SimpleRelation head = relations[h];
+                    checkThenAdd(
+                            head, entailments, matched_rules,
+                            subsumptionRuleString(head.name, relation_p.name)
+                    );
+                }
             }
         }
         return matched_rules;

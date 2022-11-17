@@ -20,7 +20,7 @@ import java.io.*;
 import java.nio.file.Paths;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class HinterTest {
 
@@ -110,8 +110,8 @@ class HinterTest {
 
         /* Remove test files */
         deleteDir(Paths.get(MEM_DIR, KB_NAME).toFile());
-        hint_file.delete();
-        rules_file.delete();
+        assertTrue(hint_file.delete());
+        assertTrue(rules_file.delete());
     }
 
     @Test
@@ -290,8 +290,8 @@ class HinterTest {
 
         /* Remove test files */
         deleteDir(Paths.get(MEM_DIR, KB_NAME).toFile());
-        hint_file.delete();
-        rules_file.delete();
+        assertTrue(hint_file.delete());
+        assertTrue(rules_file.delete());
     }
 
     @Test
@@ -398,8 +398,8 @@ class HinterTest {
 
         /* Remove test files */
         deleteDir(Paths.get(MEM_DIR, KB_NAME).toFile());
-        hint_file.delete();
-        rules_file.delete();
+        assertTrue(hint_file.delete());
+        assertTrue(rules_file.delete());
     }
 
     BareRule parseBareRule(String str, NumerationMap numMap, Set<Fingerprint> cache, Map<MultiSet<Integer>, Set<Fingerprint>> tabu) throws RuleParseException {

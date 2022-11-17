@@ -2,7 +2,6 @@ package sinc2.exp.hint;
 
 import sinc2.common.Predicate;
 import sinc2.kb.KbException;
-import sinc2.kb.SimpleKb;
 import sinc2.kb.SimpleRelation;
 import sinc2.rule.*;
 import sinc2.util.ArrayOperation;
@@ -96,7 +95,7 @@ public class Hinter {
     protected final Path outputFilePath;
 
     /** The target KB */
-    protected SimpleKb kb;
+    protected HinterKb kb;
     /** The numeration map */
     protected NumerationMap numMap;
     /** The numerations of the relations in the KB */
@@ -142,23 +141,9 @@ public class Hinter {
      */
     public void run() throws ExperimentException {
         try {
-            /* Load KB */
-            long time_start = System.currentTimeMillis();
-            kb = new SimpleKb(kbName, kbPath);
-            numMap = new NumerationMap(Paths.get(kbPath, kbName).toString());
-            kbRelationNums = new int[kb.totalRelations()];
-            kbRelationArities = new int[kb.totalRelations()];
-            int idx = 0;
-            for (SimpleRelation relation: kb.getRelations()) {
-                kbRelationNums[idx] = relation.id;
-                kbRelationArities[idx] = relation.totalCols();
-                idx++;
-            }
-            System.out.println("KB Loaded");
-            System.out.flush();
-
             /* Load hint file */
             /* Read "Fact Coverage" and "τ" */
+            long time_start = System.currentTimeMillis();
             BufferedReader reader = new BufferedReader(new FileReader(hintFilePath));
             try {
                 factCoverageThreshold = Double.parseDouble(reader.readLine());
@@ -178,7 +163,23 @@ public class Hinter {
             while (null != (line = reader.readLine())) {
                 hints.add(new Hint(line, numMap));
             }
-            System.out.println("Templates Loaded");
+            long time_temp_loaded = System.currentTimeMillis();
+            System.out.printf("Templates Loaded: %d ms\n", time_temp_loaded - time_start);
+            System.out.flush();
+
+            /* Load KB */
+            kb = new HinterKb(kbName, kbPath, factCoverageThreshold);
+            numMap = new NumerationMap(Paths.get(kbPath, kbName).toString());
+            kbRelationNums = new int[kb.totalRelations()];
+            kbRelationArities = new int[kb.totalRelations()];
+            int idx = 0;
+            for (SimpleRelation relation: kb.getRelations()) {
+                kbRelationNums[idx] = relation.id;
+                kbRelationArities[idx] = relation.totalCols();
+                idx++;
+            }
+            long time_kb_loaded = System.currentTimeMillis();
+            System.out.printf("KB Loaded: %d ms\n", time_kb_loaded - time_temp_loaded);
             System.out.flush();
 
             /* Instantiate templates */
@@ -400,7 +401,7 @@ public class Hinter {
         Eval eval = rule.getEval();
         if (compRatioThreshold <= eval.value(EvalMetric.CompressionRatio)) {
             String rule_info = String.format("%s\t%d\t%d\t%d\t%.2f\t%.2f\t%d",
-                    rule.toDumpString(numMap), rule.length(), (int) eval.getPosEtls(), (int) eval.getNegEtls(),
+                    rule.toDumpString(kb), rule.length(), (int) eval.getPosEtls(), (int) eval.getNegEtls(),
                     eval.getPosEtls()/kb.getRelation(templateFunctorInstantiation[0]).totalRows()*100,
                     eval.value(EvalMetric.CompressionRatio), (int) eval.value(EvalMetric.CompressionCapacity)
             );

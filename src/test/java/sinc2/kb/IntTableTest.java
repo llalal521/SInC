@@ -427,6 +427,37 @@ class IntTableTest {
         intArrayElementsEqual(expected_join, IntTable.join(table1, 1, 0, table2, 1, 0));
     }
 
+    @Test
+    void testColumnSimilarity() {
+        int[][] rows1 = new int[][] {
+                new int[] {1, 5, 3},
+                new int[] {2, 4, 3},
+                new int[] {1, 2, 9},
+                new int[] {5, 3, 3},
+                new int[] {1, 5, 2},
+        };
+        int[][] rows2 = new int[][] {
+                new int[] {1, 5, 3},
+                new int[] {5, 3, 3},
+                new int[] {1, 5, 2},
+                new int[] {1, 1, 1},
+                new int[] {2, 2, 2},
+                new int[] {3, 3, 3},
+        };
+        IntTable tab1 = new IntTable(rows1);
+        IntTable tab2 = new IntTable(rows2);
+
+        IntTable.SimInfo sim_info = IntTable.columnSimilarity(tab1, 0, tab2, 0);
+        assertEquals(1.0, sim_info.simIJ);
+        assertEquals(5.0/6, sim_info.simJI);
+        sim_info = IntTable.columnSimilarity(tab1, 1, tab2, 0);
+        assertEquals(0.8, sim_info.simIJ);
+        assertEquals(0.5, sim_info.simJI);
+        sim_info = IntTable.columnSimilarity(tab1, 2, tab2, 2);
+        assertEquals(0.8, sim_info.simIJ);
+        assertEquals(5.0/6, sim_info.simJI);
+    }
+
     protected void assertEqualToAtLeastOne(Object[] actual, Object[]... expected) {
         boolean equal_found = false;
         for (Object[] expected_arr: expected) {
