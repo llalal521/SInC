@@ -519,7 +519,7 @@ public abstract class Rule {
 
     /**
      * Check if the rule structure is invalid. The structure is invalid if:
-     *   1. It contains duplicated predicates Todo: Partial duplication with the head should not be defined as invalid.
+     *   1. It contains duplicated predicates
      *   2. It contains independent Fragment
      */
     protected boolean isInvalid() {
@@ -527,50 +527,42 @@ public abstract class Rule {
         /* Use the disjoint set: join limited variables if they are in the same predicate */
         /* Assumption: no body predicate contains only empty or constant argument */
         DisjointSet disjoint_set = new DisjointSet(usedLimitedVars());
+        Set<Predicate> predicate_set = new HashSet<>();
 
-        /* Check duplicated predicates */
-        /* 1. Check by set */
-        /* 2. A more aggressive check to prevent duplication with the head: check for body predicate with same argument
-           with the head */
+        /* Check Head */
         Predicate head_pred = structure.get(HEAD_PRED_IDX);
-        {
-            /* Put the LVs in the head to the disjoint set */
-            List<Integer> lv_ids = new ArrayList<>();
-            for (int arg_idx = 0; arg_idx < head_pred.arity(); arg_idx++) {
-                int argument = head_pred.args[arg_idx];
-                if (Argument.isVariable(argument)) {
-                    lv_ids.add(Argument.decode(argument));
-                }
+        List<Integer> lv_ids = new ArrayList<>();
+        boolean args_complete = true;
+        for (int arg_idx = 0; arg_idx < head_pred.arity(); arg_idx++) {
+            int argument = head_pred.args[arg_idx];
+            if (Argument.isEmpty(argument)) {
+                args_complete = false;
+            } else if (Argument.isVariable(argument)) {
+                lv_ids.add(Argument.decode(argument));
             }
-            if (lv_ids.isEmpty()) {
-                if (structure.size() >= 2) {
-                    /* The body is an independent fragment if the head contains no LV while body is not empty */
-                    return true;
-                }
-            } else {
-                /* Must check here because there may be no LV in the head */
-                int first_id = lv_ids.get(0);
-                for (int i = 1; i < lv_ids.size(); i++) {
-                    disjoint_set.unionSets(first_id, lv_ids.get(i));
-                }
+        }
+        if (args_complete) {
+            predicate_set.add(head_pred);
+        }
+        if (lv_ids.isEmpty()) {
+            if (structure.size() >= 2) {
+                /* The body is an independent fragment if the head contains no LV while body is not empty */
+                return true;
+            }
+        } else {
+            /* Must check here because there may be no LV in the head */
+            int first_id = lv_ids.get(0);
+            for (int i = 1; i < lv_ids.size(); i++) {
+                disjoint_set.unionSets(first_id, lv_ids.get(i));
             }
         }
 
-        Set<Predicate> predicate_set = new HashSet<>();
+        /* Check body */
         for (int pred_idx = FIRST_BODY_PRED_IDX; pred_idx < structure.size(); pred_idx++) {
             Predicate body_pred = structure.get(pred_idx);
-            if (head_pred.predSymbol == body_pred.predSymbol) {
-                for (int arg_idx = 0; arg_idx < head_pred.arity(); arg_idx++) {
-                    int head_arg = head_pred.args[arg_idx];
-                    int body_arg = body_pred.args[arg_idx];
-                    if (Argument.isNonEmpty(head_arg) && head_arg == body_arg) {
-                        return true;
-                    }
-                }
-            }
 
-            boolean args_complete = true;
-            List<Integer> lv_ids = new ArrayList<>();
+            args_complete = true;
+            lv_ids = new ArrayList<>();
             for (int arg_idx = 0; arg_idx < body_pred.arity(); arg_idx++) {
                 int argument = body_pred.args[arg_idx];
                 if (Argument.isEmpty(argument)) {
@@ -582,11 +574,11 @@ public abstract class Rule {
 
             if (args_complete) {
                 if (!predicate_set.add(body_pred)) {
+                    /* Predicate duplicated */
                     return true;
                 }
             }
 
-            /* 在同一个Predicate中出现的Bounded Var合并到一个集合中 */
             /* Join the LVs in the same predicate */
             if (lv_ids.isEmpty()) {
                 /* If no LV in body predicate, the predicate is certainly part of the fragment */
