@@ -8,7 +8,10 @@ import sinc2.rule.EvalMetric;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * This is the base class of all predefined template miners. Each miner should implement the "matchTemplate" method.
@@ -34,6 +37,9 @@ public abstract class TemplateMiner {
     /* Mining Thresholds */
     public static double COVERAGE_THRESHOLD = 0.2;
     public static double TAU_THRESHOLD = 0.8;
+
+    protected int checkCnt = 0;
+    protected long timeStart = System.currentTimeMillis();
 
     /**
      * This enumeration shows all available templates.
@@ -85,6 +91,10 @@ public abstract class TemplateMiner {
     protected void checkThenAdd(
             SimpleRelation headRelation, int[][] entailments, List<MatchedRule> matchedRules, String ruleString
     ) {
+        checkCnt++;
+        if (checkCnt % 1000 == 0) {
+            System.out.printf("Checked Rule: %dK (time used: %d ms)\n", checkCnt/1000, System.currentTimeMillis() - timeStart);
+        }
         if (COVERAGE_THRESHOLD > ((double) entailments.length) / headRelation.totalRows()) {
             return;
         }
