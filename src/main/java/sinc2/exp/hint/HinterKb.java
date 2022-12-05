@@ -36,6 +36,7 @@ public class HinterKb extends SimpleKb {
 
     protected void buildColumnSimilarities() {
         /* Calculate & sort value intervals of columns */
+        System.out.println("Start building column similarities...");
         long time_start = System.currentTimeMillis();
         List<ColInfo> col_infos = new ArrayList<>();
         colInfos = new ColInfo[relations.length][];
