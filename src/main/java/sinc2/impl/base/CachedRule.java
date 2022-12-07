@@ -1166,7 +1166,7 @@ public class CachedRule extends Rule {
         final List<Integer> locations = varLocs[idx];
         if (idx < varLocs.length - 1) {
             /* Expand current UV and move to the next recursion */
-            for (int constant_symbol: kb.allConstants()) {
+            for (int constant_symbol = 1; constant_symbol <= kb.totalConstants(); constant_symbol++) {
                 final int argument = Argument.constant(constant_symbol);
                 for (int loc: locations) {
                     template.args[loc] = argument;
@@ -1175,7 +1175,7 @@ public class CachedRule extends Rule {
             }
         } else {
             /* Expand the last UV and add to counterexample set if it is */
-            for (int constant_symbol: kb.allConstants()) {
+            for (int constant_symbol = 1; constant_symbol <= kb.totalConstants(); constant_symbol++) {
                 final int argument = Argument.constant(constant_symbol);
                 for (int loc: locations) {
                     template.args[loc] = argument;

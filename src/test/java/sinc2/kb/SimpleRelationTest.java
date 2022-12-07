@@ -218,7 +218,7 @@ class SimpleRelationTest {
     }
 
     @Test
-    void testRemoveReservedConstants() {
+    void testSetFlagOfReservedConstants() {
         int[][] rows = new int[][] {
                 new int[]{1, 2, 3},
                 new int[]{4, 5, 6},
@@ -226,11 +226,9 @@ class SimpleRelationTest {
         };
         SimpleRelation relation = new SimpleRelation("test", 0, rows);
         relation.setAsEntailed(new int[]{1, 2, 3});
-        Set<Integer> constants = new HashSet<>();
-        relation.collectConstants(constants);
-        assertEquals(new HashSet<>(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9)), constants);
-        relation.removeReservedConstants(constants);
-        assertEquals(new HashSet<>(List.of(1, 2, 3)), constants);
+        int[] flags = new int[]{0};
+        relation.setFlagOfReservedConstants(flags);
+        assertArrayEquals(new int[]{1008}, flags);
     }
 
     @Test

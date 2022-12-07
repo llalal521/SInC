@@ -30,8 +30,7 @@ class SimpleKbTest {
         assertEquals(testKbManager.getKbName(), kb.getName());
         assertEquals(3, kb.totalRelations());
         assertEquals(12, kb.totalRecords());
-        assertEquals(14, kb.totalConstants());
-        assertEquals(new HashSet<>(List.of(4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)), kb.allConstants());
+        assertEquals(17, kb.totalConstants());  // Here the numbers 1, 2, and 3 should be taken into consideration, even though they do not appear in the records
         kb.hasRecord("family", new int[]{4, 5, 6});
         kb.hasRecord("family", new int[]{7, 8, 9});
         kb.hasRecord("family", new int[]{10, 11, 12});

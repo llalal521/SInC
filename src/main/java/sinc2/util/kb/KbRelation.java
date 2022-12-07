@@ -214,15 +214,16 @@ public class KbRelation implements Iterable<Record> {
     /**
      * Add a record to the relation.
      *
+     * @return If the record has been added to the relation before, return false; otherwise, return true.
      * @throws KbException The arity of the record does not match that of the relation.
      */
-    public void addRecord(Record record) throws KbException {
+    public boolean addRecord(Record record) throws KbException {
         if (record.args.length != arity) {
             throw new KbException(String.format(
                     "Record arity (%d) does not match the relation (%d)", record.args.length, arity
             ));
         }
-        records.add(record);
+        return records.add(record);
     }
 
     /**
@@ -249,9 +250,11 @@ public class KbRelation implements Iterable<Record> {
 
     /**
      * Remove a record from the relation
+     *
+     * @return Whether the record exists in the relation before the removal.
      */
-    public void removeRecord(Record record) {
-        records.remove(record);
+    public boolean removeRecord(Record record) {
+        return records.remove(record);
     }
 
     /**

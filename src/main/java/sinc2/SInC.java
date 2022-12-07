@@ -104,7 +104,7 @@ public abstract class SInC {
      * Load a KB (in the format of Numerated KB) and return the KB
      */
     protected SimpleKb loadKb() throws KbException, IOException {
-        SimpleKb kb =  new SimpleKb(config.kbName, config.basePath, true);
+        SimpleKb kb = new SimpleKb(config.kbName, config.basePath);
         kb.updatePromisingConstants();
         return kb;
     }

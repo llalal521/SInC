@@ -11,14 +11,12 @@ import java.util.*;
  * The class for the numeration map between name strings and numerations. The applicable integers are the positive ones.
  *
  * The numeration map can be dumped into local storage as multiple regular files, each of which contains no more than
- * 'MAX_MAP_ENTRIES' (default 1M) entries. The files are named by `map<#num>.tsv` by default. `#num` is the order of the
- * files, starting from 'MAP_FILE_NUMERATION_START' (default 1).
+ * 'MAX_MAP_ENTRIES' (default 1M) lines. The files are named by `map<#num>.tsv` by default. `#num` is the order of the
+ * files and the order numbers are continuous integers starting from 'MAP_FILE_NUMERATION_START' (default 1).
  *
- * The file contains two columns separated by the tabular char (`'\t'`):
- *   - The 1st column is the string for relation/entity names;
- *   - The 2nd column is an integer (in Hexadecimal) that is assigned as the identifier for the string;
- *   - Each row denotes a mapping between the name and the integer;
- *   - The mapping should be bijective, and the integers are continuous starting from 1.
+ * The file contains only one column, each denoting a mapped name string. The name strings are sorted in order, so the
+ * order (starting from 1) is the number mapped to them. The empty string "" refers to an empty mapping where the number
+ * is not mapped to any string.
  *
  * @since 2.0
  */
@@ -33,7 +31,7 @@ public class NumerationMap {
     /** The map from name strings to integers */
     protected Map<String, Integer> numMap;
     /** The map from integers to name strings */
-    protected List<String> numArray;
+    protected ArrayList<String> numArray;
     /** The set of numbers which are smaller than the maximum mapped integer but are not mapped yet, organized as a min-heap */
     protected PriorityQueue<Integer> freeNums;
 
@@ -94,6 +92,12 @@ public class NumerationMap {
         /* Load the string-to-integer map */
         File kb_dir = new File(kbPath);
         File[] map_files = kb_dir.listFiles((dir, name) -> name.matches("map[0-9]+.tsv$"));
+        if (null != map_files) {
+            /* Sort the files in order */
+            for (int i = 0; i < map_files.length; i++) {
+                map_files[i] = Paths.get(kbPath, String.format("map%d.tsv", i+MAP_FILE_NUMERATION_START)).toFile();
+            }
+        }
         numMap = new HashMap<>();
         freeNums = new PriorityQueue<>();
         loadHandler(map_files);
@@ -123,47 +127,33 @@ public class NumerationMap {
     /**
      * Load the numeration map from files. If no file is given, create an empty map.
      *
-     * @param mapFiles The files that should be loaded
+     * @param mapFiles The files that should be loaded. The files should be sorted in order.
      */
     protected void loadHandler(File[] mapFiles) {
+        numArray = new ArrayList<>();
+        numArray.add(null);  // The object at index 0 should not be used.
         if (null == mapFiles || 0 == mapFiles.length) {
             /* Initialize as an empty map */
-            numArray = new ArrayList<>();
-            numArray.add(null);  // The object at index 0 should not be used.
             return;
         }
-        int max_num = 0;
+
+        /* Load multiple files in order */
         for (File map_file: mapFiles) {
             try {
                 BufferedReader reader = new BufferedReader(new FileReader(map_file));
                 String line;
                 while (null != (line = reader.readLine())) {
-                    String[] components = line.split("\t");
-                    String name = components[0];
-                    int num = Integer.parseInt(components[1], 16);
-                    numMap.put(name, num);
-                    max_num = Math.max(max_num, num);
+                    if ("".equals(line)) {
+                        freeNums.add(numArray.size());
+                        numArray.add(null);
+                    } else {
+                        numMap.put(line, numArray.size());
+                        numArray.add(line);
+                    }
                 }
                 reader.close();
             } catch (IOException e) {
                 e.printStackTrace();
-            }
-        }
-
-        /* Create the integer-to-string map */
-        int capacity = max_num + 1;
-        numArray = new ArrayList<>(capacity);
-        while (numArray.size() < capacity) {
-            numArray.add(null);
-        }
-        for (Map.Entry<String, Integer> entry: numMap.entrySet()) {
-            numArray.set(entry.getValue(), entry.getKey());
-        }
-
-        /* Find the free integers */
-        for (int i = 1; i < capacity; i++) {
-            if (null == numArray.get(i)) {
-                freeNums.add(i);
             }
         }
     }
@@ -254,30 +244,34 @@ public class NumerationMap {
      * @throws FileNotFoundException Thrown when the map files failed to be created
      */
     public void dump(String kbPath) throws FileNotFoundException {
-        dump(kbPath, MAP_FILE_NUMERATION_START, MAX_MAP_ENTRIES);
+        dump(kbPath, MAX_MAP_ENTRIES);
     }
 
     /**
      * Dump the numeration map to local files.
      *
      * @param kbPath The path where the map files will be stored
-     * @param startMapNum The start number of the map files
      * @param maxEntries The maximum number of entries a map file contains
      * @throws FileNotFoundException Thrown when the map files failed to be created
      */
-    public void dump(String kbPath, final int startMapNum, final int maxEntries) throws FileNotFoundException {
-        int map_num = startMapNum;
+    public void dump(String kbPath, final int maxEntries) throws FileNotFoundException {
+        int map_num = MAP_FILE_NUMERATION_START;
         PrintWriter writer = new PrintWriter(getMapFilePath(kbPath, map_num).toFile());
         int records_cnt = 0;
-        for (Map.Entry<String, Integer> entry: numMap.entrySet()) {
-            if (maxEntries <= records_cnt) {
-                writer.close();
-                map_num++;
-                records_cnt = 0;
-                writer = new PrintWriter(getMapFilePath(kbPath, map_num).toFile());
+        Iterator<String> iterator = numArray.iterator();
+        if (iterator.hasNext()) {
+            iterator.next();    // pass the first element
+            while (iterator.hasNext()) {
+                String name = iterator.next();
+                if (maxEntries <= records_cnt) {
+                    writer.close();
+                    map_num++;
+                    records_cnt = 0;
+                    writer = new PrintWriter(getMapFilePath(kbPath, map_num).toFile());
+                }
+                writer.println((null == name) ? "" : name);
+                records_cnt++;
             }
-            writer.printf("%s\t%x\n", entry.getKey(), entry.getValue());
-            records_cnt++;
         }
         writer.close();
     }
@@ -290,8 +284,13 @@ public class NumerationMap {
      */
     public void dump(String kbPath, String fileName) throws FileNotFoundException {
         PrintWriter writer = new PrintWriter(Paths.get(kbPath, fileName).toFile());
-        for (Map.Entry<String, Integer> entry: numMap.entrySet()) {
-            writer.printf("%s\t%x\n", entry.getKey(), entry.getValue());
+        Iterator<String> iterator = numArray.iterator();
+        if (iterator.hasNext()) {
+            iterator.next();    // pass the first element
+            while (iterator.hasNext()) {
+                String name = iterator.next();
+                writer.println((null == name) ? "" : name);
+            }
         }
         writer.close();
     }
@@ -351,5 +350,36 @@ public class NumerationMap {
         if (o == null || getClass() != o.getClass()) return false;
         NumerationMap that = (NumerationMap) o;
         return Objects.equals(numMap, that.numMap);
+    }
+
+    /**
+     * Use existing entries to replace the empty ones in "freeNums".
+     *
+     * @return Return a map of the change. An entry "<k, v>" in the map means that the number "k" has been replaced by "v"
+     * in the updated numerated map.
+     */
+    public Map<Integer, Integer> replaceEmpty() {
+        Map<Integer, Integer> remap = new HashMap<>();
+        int last_num = numArray.size() - 1;
+        while (true) {
+            /* Locate the last mapped number */
+            for (; last_num >= 0 && null == numArray.get(last_num); last_num--);
+
+            /* Replace the free number with the last mapped number */
+            int free_num;
+            if (freeNums.isEmpty() || (free_num = freeNums.poll()) >= last_num) {
+                break;
+            }
+            String name = numArray.get(last_num);
+            numArray.set(free_num, name);
+            numMap.put(name, free_num);
+            remap.put(last_num, free_num);
+            last_num--;
+        }
+
+        /* Truncate number list */
+        freeNums.clear();
+        numArray.subList(last_num+1, numArray.size()).clear();
+        return remap;
     }
 }

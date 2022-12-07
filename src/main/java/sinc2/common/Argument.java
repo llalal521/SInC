@@ -9,6 +9,8 @@ package sinc2.common;
  *
  * The range of applicable constant is [1, 2^31 - 1]; [0, 2^31 - 1] for variable IDs.
  *
+ * NOTE: only arguments in Horn rules should use this class to encode.
+ *
  * @since 2.0
  */
 public class Argument {

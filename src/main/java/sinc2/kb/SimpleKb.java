@@ -13,6 +13,9 @@ import java.util.*;
  * cost is much lower than NumeratedKb. The estimated size of the memory cost, at the worst case, is about 3 times the
  * size of the disk space taken by all relation files. For more information, please refer to "NumeratedKB".
  *
+ * Given that the constant numerations are in a continuous integer span [1, n], only one integer, n, denoting the total
+ * number of constants are needed to refer to all constants.
+ *
  * @see NumeratedKb
  * @since 2.1
  */
@@ -26,7 +29,8 @@ public class SimpleKb {
     protected final Map<String, Integer> relationNameMap;
     /** The list of promising constants in the corresponding relations */
     protected int[][][] promisingConstants;
-    protected Set<Integer> constants;
+    /** The total number of constants in the KB */
+    protected final int totalConstants;
 
     /**
      * Load a KB from local file system.
@@ -39,55 +43,33 @@ public class SimpleKb {
         this.name = name;
         this.relationNameMap = new HashMap<>();
         this.relations = loadRelations(basePath);
-        constants = null;
+        int max_value = 0;
+        for (SimpleRelation relation: relations) {
+            max_value = Math.max(max_value, relation.maxValue());
+        }
+        totalConstants = max_value;
     }
 
     /**
-     * Create a KB from a list of relations (a relation here is a list of int arrays)
+     * Create a KB from a list of relations (a relation here is a list of int arrays).
      *
      * @param kbName             The name of the KB
      * @param relations          The list of relations
      * @param relNames           The list of names of the corresponding relations
-     * @param calculateConstants Whether all constants are enumerated during construction
+     * @deprecated This method is for test only.
      */
-    public SimpleKb(String kbName, int[][][] relations, String[] relNames, boolean calculateConstants) {
+    @Deprecated
+    public SimpleKb(String kbName, int[][][] relations, String[] relNames) {
         this.name = kbName;
         this.relations = new SimpleRelation[relations.length];
         this.relationNameMap = new HashMap<>();
+        int max_value = 0;
         for (int i = 0; i < relations.length; i++) {
             this.relations[i] = new SimpleRelation(relNames[i], i, relations[i]);
             relationNameMap.put(relNames[i], i);
+            max_value = Math.max(max_value, this.relations[i].maxValue());
         }
-        if (calculateConstants) {
-            constants = new HashSet<>();
-            for (SimpleRelation relation: this.relations) {
-                relation.collectConstants(constants);
-            }
-        } else {
-            constants = null;
-        }
-    }
-
-    /**
-     * Load a KB from local file system.
-     *
-     * @param name The name of the KB
-     * @param basePath The base path to the dir of the KB
-     * @param calculateConstants Whether all constants are enumerated during construction
-     * @throws IOException
-     */
-    public SimpleKb(String name, String basePath, boolean calculateConstants) throws IOException {
-        this.name = name;
-        this.relationNameMap = new HashMap<>();
-        this.relations = loadRelations(basePath);
-        if (calculateConstants) {
-            constants = new HashSet<>();
-            for (SimpleRelation relation: relations) {
-                relation.collectConstants(constants);
-            }
-        } else {
-            constants = null;
-        }
+        totalConstants = max_value;
     }
 
     protected SimpleRelation[] loadRelations(String basePath) throws IOException {
@@ -178,23 +160,7 @@ public class SimpleKb {
         return cnt;
     }
 
-    public Set<Integer> allConstants() {
-        if (null == constants) {
-            constants = new HashSet<>();
-            for (SimpleRelation relation: relations) {
-                relation.collectConstants(constants);
-            }
-        }
-        return constants;
-    }
-
     public int totalConstants() {
-        if (null == constants) {
-            constants = new HashSet<>();
-            for (SimpleRelation relation: relations) {
-                relation.collectConstants(constants);
-            }
-        }
-        return constants.size();
+        return totalConstants;
     }
 }

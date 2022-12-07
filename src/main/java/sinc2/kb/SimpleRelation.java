@@ -293,12 +293,12 @@ public class SimpleRelation extends IntTable {
     /**
      * Remove constants of non-entailed records from the set "constants".
      */
-    public void removeReservedConstants(Set<Integer> constants) {
+    public void setFlagOfReservedConstants(int[] flags) {
         int[][] records = sortedRowsByCols[0];
         for (int idx = 0; idx < totalRows; idx++) {
             if (0 == entailment(idx)) {
-                for (int i : records[idx]) {
-                    constants.remove(i);
+                for (int arg : records[idx]) {
+                    flags[arg / BITS_PER_INT] |= 1 << (arg % BITS_PER_INT);
                 }
             }
         }
