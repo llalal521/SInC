@@ -303,4 +303,8 @@ public class SimpleRelation extends IntTable {
             }
         }
     }
+
+    public int[] getRowAt(int idx) {
+        return sortedRowsByCols[0][idx];
+    }
 }

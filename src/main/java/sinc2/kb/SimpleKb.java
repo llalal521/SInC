@@ -53,12 +53,13 @@ public class SimpleKb {
     /**
      * Create a KB from a list of relations (a relation here is a list of int arrays).
      *
+     * NOTE: Suppose the integers in the relations lie in the integer span: [1, n], each integer "i" in [1, n] should
+     * appear in at least one argument. Otherwise, the number of constants will NOT be correct.
+     *
      * @param kbName             The name of the KB
      * @param relations          The list of relations
      * @param relNames           The list of names of the corresponding relations
-     * @deprecated This method is for test only.
      */
-    @Deprecated
     public SimpleKb(String kbName, int[][][] relations, String[] relNames) {
         this.name = kbName;
         this.relations = new SimpleRelation[relations.length];
