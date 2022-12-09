@@ -151,7 +151,7 @@ public abstract class RelationMiner {
             /* Assumption: the stopping threshold is no less than the threshold of usefulness */
             Eval best_eval = best_candidate.getEval();
             if (stopCompressionRatio <= best_eval.value(EvalMetric.CompressionRatio) || 0 == best_eval.getNegEtls()) {
-                return best_candidate;
+                return best_eval.useful() ? best_candidate : null;
             }
 
             /* Update the beams */

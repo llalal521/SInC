@@ -34,6 +34,12 @@ public class HinterKb extends SimpleKb {
         buildColumnSimilarities();
     }
 
+    public HinterKb(SimpleKb kb, double similarityThreshold) {
+        super(kb);
+        this.similarityThreshold = similarityThreshold;
+        buildColumnSimilarities();
+    }
+
     protected void buildColumnSimilarities() {
         /* Calculate & sort value intervals of columns */
         System.out.println("Start building column similarities...");

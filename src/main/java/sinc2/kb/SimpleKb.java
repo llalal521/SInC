@@ -73,6 +73,14 @@ public class SimpleKb {
         totalConstants = max_value;
     }
 
+    public SimpleKb(SimpleKb another) {
+        this.name = another.name;
+        this.relations = another.relations;
+        this.relationNameMap = another.relationNameMap;
+        this.totalConstants = another.totalConstants;
+        this.promisingConstants = another.promisingConstants;
+    }
+
     protected SimpleRelation[] loadRelations(String basePath) throws IOException {
         File kb_dir = NumeratedKb.getKbPath(name, basePath).toFile();
         String kb_dir_path = kb_dir.getAbsolutePath();

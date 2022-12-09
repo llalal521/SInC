@@ -2,6 +2,7 @@ package sinc2.exp.hint.predefined;
 
 import sinc2.exp.hint.ExperimentException;
 import sinc2.exp.hint.HinterKb;
+import sinc2.kb.SimpleKb;
 import sinc2.kb.SimpleRelation;
 
 import java.io.*;
@@ -74,13 +75,19 @@ public class PredefinedHinter {
         String kb_name = args[1];
         String hint_file_path = args[2];
         String output_dir_path = getOutputDirPath(hint_file_path, kb_name);
-        PrintStream log_stream = new PrintStream(Paths.get(output_dir_path, String.format("rules_%s.log", kb_name)).toFile());
+        run(kb_path, kb_name, hint_file_path, output_dir_path);
+    }
+
+    public static void run(String kbPath, String kbName, String hintFilePath, String outputDirPath) throws IOException, ExperimentException {
+        PrintStream log_stream = new PrintStream(Paths.get(outputDirPath, String.format("rules_%s.log", kbName)).toFile());
+        PrintStream original_out = System.out;
+        PrintStream original_err = System.err;
         System.setOut(log_stream);
         System.setErr(log_stream);
 
         /* Load template file */
         long time_start = System.currentTimeMillis();
-        BufferedReader reader = new BufferedReader(new FileReader(hint_file_path));
+        BufferedReader reader = new BufferedReader(new FileReader(hintFilePath));
         try {
             TemplateMiner.COVERAGE_THRESHOLD = Double.parseDouble(reader.readLine());
         } catch (Exception e) {
@@ -101,7 +108,7 @@ public class PredefinedHinter {
         System.out.flush();
 
         /* Load KB */
-        HinterKb kb = new HinterKb(kb_name, kb_path, TemplateMiner.COVERAGE_THRESHOLD);
+        HinterKb kb = new HinterKb(kbName, kbPath, TemplateMiner.COVERAGE_THRESHOLD);
         long time_kb_loaded = System.currentTimeMillis();
         System.out.printf("KB Loaded: %d s\n", (time_kb_loaded - time_start) / 1000);
         System.out.flush();
@@ -113,7 +120,7 @@ public class PredefinedHinter {
             System.out.printf("Matching template (%d/%d): %s\n", i + 1, template_names.size(), template_name);
             TemplateMiner miner = TemplateMiner.TemplateType.getMinerByName(template_name);
             List<MatchedRule> matched_rules = miner.matchTemplate(kb);
-            miner.dumpResult(matched_rules, output_dir_path);
+            miner.dumpResult(matched_rules, outputDirPath);
             long time_miner_done = System.currentTimeMillis();
             System.out.printf("Template matching done (Time Cost: %d s)\n", (time_miner_done - time_miner_start) / 1000);
         }
@@ -137,6 +144,66 @@ public class PredefinedHinter {
                 total_covered_records * 100.0 / total_records, total_covered_records, total_records
         );
         System.out.printf("Total Time: %d s\n", (time_done - time_start) / 1000);
+
+        System.setOut(original_out);
+        System.setErr(original_err);
+    }
+
+    public static void run(SimpleKb kb, double coverageThreshold, double tauThreshold, String[] templateNames, String baseDirPath) throws IOException {
+        File dir_file = Paths.get(baseDirPath, kb.getName()).toFile();
+        if (!dir_file.exists() && !dir_file.mkdirs()) {
+            throw new IOException("Output dir creation failed: " + dir_file.getAbsolutePath());
+        }
+        String output_dir_path = Paths.get(baseDirPath, kb.getName()).toAbsolutePath().toString();
+        PrintStream log_stream = new PrintStream(Paths.get(output_dir_path, String.format("rules_%s.log", kb.getName())).toFile());
+        PrintStream original_out = System.out;
+        PrintStream original_err = System.err;
+        System.setOut(log_stream);
+        System.setErr(log_stream);
+
+        /* Load configurations */
+        TemplateMiner.COVERAGE_THRESHOLD = coverageThreshold;
+        TemplateMiner.TAU_THRESHOLD = tauThreshold;
+        long time_start = System.currentTimeMillis();
+        HinterKb hkb = new HinterKb(kb, TemplateMiner.COVERAGE_THRESHOLD);
+        long time_kb_loaded = System.currentTimeMillis();
+        System.out.printf("KB Loaded: %d s\n", (time_kb_loaded - time_start) / 1000);
+        System.out.flush();
+
+        /* Match the templates */
+        for (int i = 0; i < templateNames.length; i++) {
+            long time_miner_start = System.currentTimeMillis();
+            String template_name = templateNames[i];
+            System.out.printf("Matching template (%d/%d): %s\n", i + 1, templateNames.length, template_name);
+            TemplateMiner miner = TemplateMiner.TemplateType.getMinerByName(template_name);
+            List<MatchedRule> matched_rules = miner.matchTemplate(hkb);
+            miner.dumpResult(matched_rules, output_dir_path);
+            long time_miner_done = System.currentTimeMillis();
+            System.out.printf("Template matching done (Time Cost: %d s)\n", (time_miner_done - time_miner_start) / 1000);
+        }
+        long time_done = System.currentTimeMillis();
+
+        /* Calculate matching statistics */
+        int total_records = 0;
+        int total_covered_records = 0;
+        for (SimpleRelation relation: hkb.getRelations()) {
+            int relation_records = relation.totalRows();
+            int covered_records = relation.totalEntailedRecords();
+            System.out.printf(
+                    "Relation Coverage: %s = %.2f%% (%d/%d)\n", relation.name,
+                    covered_records * 100.0 / relation_records, covered_records, relation_records
+            );
+            total_records += relation_records;
+            total_covered_records += covered_records;
+        }
+        System.out.printf(
+                "Total Coverage: %.2f%% (%d/%d)\n",
+                total_covered_records * 100.0 / total_records, total_covered_records, total_records
+        );
+        System.out.printf("Total Time: %d s\n", (time_done - time_start) / 1000);
+
+        System.setOut(original_out);
+        System.setErr(original_err);
     }
 
     protected static String getOutputDirPath(String hintFilePath, String kbName) throws ExperimentException {

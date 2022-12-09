@@ -5,6 +5,7 @@ import sinc2.SInC;
 import sinc2.SincConfig;
 import sinc2.SincRecovery;
 import sinc2.common.SincException;
+import sinc2.kb.SimpleKb;
 
 /**
  * A basic implementation of SInC. Rule mining are with compact caching and tabu prunning.
@@ -19,6 +20,10 @@ public class SincBasic extends SInC {
      */
     public SincBasic(SincConfig config) throws SincException {
         super(config);
+    }
+
+    public SincBasic(SincConfig config, SimpleKb kb) throws SincException {
+        super(config, kb);
     }
 
     @Override
