@@ -532,6 +532,14 @@ public class IntTable implements Iterable<int[]> {
         return values[values.length-1];
     }
 
+    public int maxValue() {
+        int max_value = valuesByCols[0][0];
+        for (int[] values: valuesByCols) {
+            max_value = Math.max(max_value, values[values.length-1]);
+        }
+        return max_value;
+    }
+
     public static class SimInfo {
         public final double simIJ;
         public final double simJI;

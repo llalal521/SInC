@@ -34,6 +34,7 @@ class IntTableTest {
         };
         assertArrayEquals(expected_values_by_cols, table.valuesByCols);
         assertArrayEquals(expected_start_offsets_by_cols, table.startOffsetsByCols);
+        assertEquals(9, table.maxValue());
     }
 
     @Test

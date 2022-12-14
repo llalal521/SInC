@@ -49,13 +49,19 @@ public class MultiSet<T> {
         }
     }
 
-    public void remove(T element) {
-        cntMap.computeIfPresent(element, (k, v) -> {
+    /**
+     * Remove an element "element" from the multiset.
+     *
+     * @return the number of remaining elements that are the same as "element" in the multiset
+     */
+    public int remove(T element) {
+        Integer cnt = cntMap.computeIfPresent(element, (k, v) -> {
             if (1 <= v) {
                 size--;
             }
             return (1 < v) ? v - 1 : null;
         });
+        return (null == cnt) ? 0 : cnt;
     }
 
     public int size() {

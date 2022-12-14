@@ -86,8 +86,8 @@ class SimpleCompressedKbTest {
         assertEquals(1, ckb.totalFvsRecords());
         assertEquals(3, ckb.totalCounterexamples());
         assertEquals(5, ckb.totalHypothesisSize());
-        assertEquals(4, ckb.totalSupplementaryConstants());
-        assertEquals(new HashSet<>(List.of(4, 7, 8, 9)), ckb.supplementaryConstants);
+        assertEquals(7, ckb.totalSupplementaryConstants()); // In this test, numbers 1, 2, and 3 should be taken into consideration
+        assertEquals(new HashSet<>(List.of(1, 2, 3, 4, 7, 8, 9)), ckb.supplementaryConstants);
 
         /* Dump */
         String tmp_dir_path = testKbManager.createTmpDir();

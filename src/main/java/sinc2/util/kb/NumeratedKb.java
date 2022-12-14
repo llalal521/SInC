@@ -1,8 +1,8 @@
 package sinc2.util.kb;
 
-import sinc2.common.Argument;
 import sinc2.common.Record;
 import sinc2.kb.KbException;
+import sinc2.util.MultiSet;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,16 +11,17 @@ import java.nio.file.Paths;
 import java.util.*;
 
 /**
- * The in-memory KB. Name strings are converted to integer numbers to reduce memory cost and improve processing efficiency.
- * A KB is a set of 'NumeratedRelation'. A KB can be dumped into the local file system. A dumped KB is a directory (named
- * by the KB name) that contains multiple files:
+ * The in-memory KB. Entity name strings are converted to integer numbers to reduce memory cost and improve processing
+ * efficiency. A KB is a set of 'NumeratedRelation'. A KB can be dumped into the local file system. A dumped KB is a
+ * directory (named by the KB name) that contains multiple files:
  *   - The numeration mapping file: Please refer to class 'sinc2.util.kb.NumerationMap'
  *   - The relation files: Please refer to class 'sinc2.util.kb.KbRelation'
  *   - Meta information files:
  *       - There may be multiple files with extension `.meta` to store arbitrary meta information of the KB.
  *       - The files are customized by other utilities and are not in a fixed format.
  *
- * Note: the arguments in a record should be encoded values by "constant()/variable" methods in the "Argument" class.
+ * The dump of the numerated KB ensures that the numeration of all entities are mapped into a continued integer span:
+ * (0, n], where n is the total number of different entity names
  *
  * @since 2.0
  * @see NumerationMap
@@ -30,10 +31,14 @@ public class NumeratedKb {
 
     /** The name of the KB */
     protected final String name;
-    /** The mapping from relation name numerations to relations */
-    protected final Map<Integer, KbRelation> relationMap = new HashMap<>();
+    /** The mapping from relation names to relation index in the relation list */
+    protected final Map<String, KbRelation> relationMap = new HashMap<>();
+    /** The list of relations */
+    protected final List<KbRelation> relations = new ArrayList<>();
     /** The numeration map */
     protected NumerationMap numMap;
+    /** The multiset of all numerations mapped from entity names */
+    protected final MultiSet<Integer> numSet;
 
     /**
      * Get the path for the files where the KB is dumped.
@@ -54,6 +59,7 @@ public class NumeratedKb {
     public NumeratedKb(String name) {
         this.name = name;
         this.numMap = new NumerationMap();
+        this.numSet = new MultiSet<>();
     }
 
     /**
@@ -70,6 +76,7 @@ public class NumeratedKb {
         File kb_dir = getKbPath(name, basePath).toFile();
         String kb_dir_path = kb_dir.getAbsolutePath();
         this.numMap = new NumerationMap(kb_dir_path);
+        this.numSet = new MultiSet<>();
         loadAllRelationsHandler(kb_dir, false);
     }
 
@@ -88,6 +95,7 @@ public class NumeratedKb {
         File kb_dir = getKbPath(name, basePath).toFile();
         String kb_dir_path = kb_dir.getAbsolutePath();
         this.numMap = new NumerationMap(kb_dir_path);
+        this.numSet = new MultiSet<>();
         loadAllRelationsHandler(kb_dir, check);
     }
 
@@ -98,10 +106,12 @@ public class NumeratedKb {
      */
     public NumeratedKb(NumeratedKb another, String name) {
         this.name = name;
-        for (Map.Entry<Integer, KbRelation> entry: another.relationMap.entrySet()) {
+        for (Map.Entry<String, KbRelation> entry: another.relationMap.entrySet()) {
             relationMap.put(entry.getKey(), new KbRelation(entry.getValue()));
         }
         numMap = new NumerationMap(another.numMap);
+        relations.addAll(another.relations);
+        numSet = new MultiSet<>(another.numSet);
     }
 
     /**
@@ -117,11 +127,7 @@ public class NumeratedKb {
             for (File f: files) {
                 KbRelation.RelationInfo rel_info = KbRelation.parseRelFilePath(f.getName());
                 if (null != rel_info) {
-                    KbRelation relation = new KbRelation(
-                            rel_info.name, numMap.mapName(rel_info.name), rel_info.arity, rel_info.totalRecords,
-                            kb_dir_path, check ? numMap : null
-                    );
-                    relationMap.put(relation.getNumeration(), relation);
+                    loadRelation(kb_dir_path, rel_info.name, rel_info.arity, rel_info.totalRecords, check);
                 }
             }
         }
@@ -134,6 +140,8 @@ public class NumeratedKb {
      * @throws IOException Thrown when KB directory creation failed or errors occur in the dump of other files
      */
     public void dump(String basePath) throws IOException {
+        tidyUp();
+
         /* Check & create dir */
         Path kb_dir = getKbPath(name, basePath);
         File kb_dir_file = kb_dir.toFile();
@@ -144,7 +152,7 @@ public class NumeratedKb {
         /* Dump */
         String kb_dir_path = kb_dir_file.getAbsolutePath();
         numMap.dump(kb_dir_path);
-        for (KbRelation relation: relationMap.values()) {
+        for (KbRelation relation: relations) {
             if (0 < relation.totalRecords()) {
                 /* Dump only non-empty relations */
                 relation.dump(kb_dir_path);
@@ -153,24 +161,27 @@ public class NumeratedKb {
     }
 
     /**
-     * Create an empty relation in the KB. If the name 'relName' has been used, raise a KbException.
+     * Return a newly created relation of 'relName' in the KB or the existing one.
      *
      * @param relName The name of the relation
      * @param arity The arity of the relation
      * @return The created relation object
-     * @throws KbException The relation name has already been used
+     * @throws KbException The relation has already been created with a different arity
      */
     public KbRelation createRelation(String relName, int arity) throws KbException {
-        int num = numMap.name2Num(relName);
-        if (NumerationMap.NUM_NULL == num) {
-            num = numMap.mapName(relName);
-        }
-        KbRelation relation = relationMap.get(num);
+        KbRelation relation = relationMap.get(relName);
         if (null != relation) {
-            throw new KbException("The relation name has already been used: " + relName);
+            if (relation.getArity() != arity) {
+                throw new KbException(String.format(
+                        "The relation has already been created: %s (arity=%d, instead of %d)",
+                        relName, relation.getArity(), arity
+                ));
+            }
+        } else {
+            relation = new KbRelation(relName, relations.size(), arity);
+            relationMap.put(relName, relation);
+            relations.add(relation);
         }
-        relation = new KbRelation(relName, num, arity);
-        relationMap.put(num, relation);
         return relation;
     }
 
@@ -185,16 +196,18 @@ public class NumeratedKb {
      */
     public KbRelation loadRelation(String relBasePath, String relName, int arity, int totalRecords, boolean check)
             throws KbException, IOException {
-        int num = numMap.name2Num(relName);
-        if (NumerationMap.NUM_NULL != num) {
-            if (!relationMap.containsKey(num)) {
-                throw new KbException("The relation name has already been used: " + relName);
-            }
-        } else {
-            num = numMap.mapName(relName);
+        KbRelation relation = relationMap.get(relName);
+        if (null != relation) {
+            throw new KbException("The relation has already been created in the KB: " + relName);
         }
-        KbRelation relation = new KbRelation(relName, num, arity, totalRecords, relBasePath, check ? numMap:null);
-        relationMap.put(num, relation);
+        relation = new KbRelation(relName, relations.size(), arity, totalRecords, relBasePath, check ? numMap:null);
+        relationMap.put(relName, relation);
+        relations.add(relation);
+        for (Record record: relation) {
+            for (int arg: record.args) {
+                numSet.add(arg);
+            }
+        }
         return relation;
     }
 
@@ -204,7 +217,19 @@ public class NumeratedKb {
      * @return The removed relation, or NULL if no such relation
      */
     public KbRelation deleteRelation(int relNum) {
-        return deleteRelationHandler(relNum);
+        KbRelation relation = relations.get(relNum);
+        if (null != relation) {
+            relationMap.remove(relation.getName());
+            relations.set(relNum, null);
+            for (Record record: relation) {
+                for (int arg: record.args) {
+                    if (0 == numSet.remove(arg)) {
+                        numMap.unmapNumeration(arg);
+                    }
+                }
+            }
+        }
+        return relation;
     }
 
     /**
@@ -213,55 +238,62 @@ public class NumeratedKb {
      * @return The removed relation, or NULL if no such relation
      */
     public KbRelation deleteRelation(String relName) {
-        return deleteRelationHandler(numMap.name2Num(relName));
-    }
-
-    protected KbRelation deleteRelationHandler(int relNum) {
-        return relationMap.remove(relNum);
+        KbRelation relation = relationMap.remove(relName);
+        if (null != relation) {
+            relations.set(relation.getNumeration(), null);
+            for (Record record: relation) {
+                for (int arg: record.args) {
+                    if (0 == numSet.remove(arg)) {
+                        numMap.unmapNumeration(arg);
+                    }
+                }
+            }
+        }
+        return relation;
     }
 
     /**
      * Fetch the relation object from the KB by relation name. NULL if no such relation.
      */
     public KbRelation getRelation(String relName) {
-        return relationMap.get(numMap.name2Num(relName));
+        return relationMap.get(relName);
     }
 
     /**
      * Fetch the relation object from the KB by relation name numeration. NULL if no such relation.
      */
     public KbRelation getRelation(int relNum) {
-        return relationMap.get(relNum);
+        return (relNum >= 0 && relNum < relations.size())? relations.get(relNum) : null;
     }
 
     /**
      * Check the existence of the relation by the name.
      */
     public boolean hasRelation(String relName) {
-        return relationMap.containsKey(numMap.name2Num(relName));
+        return relationMap.containsKey(relName);
     }
 
     /**
      * Check the existence of the relation by the name numeration.
      */
     public boolean hasRelation(int relNum) {
-        return relationMap.containsKey(relNum);
+        return relNum >= 0 && relNum < relations.size() && (null != relations.get(relNum));
     }
 
     /**
-     * Get the arity of the relation. 0 if no such relation.
+     * Get the arity of the relation. -1 if no such relation.
      */
     public int getRelationArity(String relName) {
         KbRelation relation = getRelation(relName);
-        return (null == relation) ? 0 : relation.getArity();
+        return (null == relation) ? -1 : relation.getArity();
     }
 
     /**
-     * Get the arity of the relation. 0 if no such relation.
+     * Get the arity of the relation. -1 if no such relation.
      */
     public int getRelationArity(int relNum) {
         KbRelation relation = getRelation(relNum);
-        return (null == relation) ? 0 : relation.getArity();
+        return (null == relation) ? -1 : relation.getArity();
     }
 
     /**
@@ -274,22 +306,11 @@ public class NumeratedKb {
      * @throws KbException Record arity does not match the relation
      */
     public void addRecord(String relName, String[] argNames) throws KbException {
-        KbRelation relation = getRelation(relName);
-        if (null == relation) {
-            relation = createRelation(relName, argNames.length);
-        }
-
-        int arity = relation.getArity();
-        if (argNames.length != arity) {
-            throw new KbException(String.format(
-                    "Record arity (%d) does not match the relation (%d): %s", argNames.length, arity,
-                    Arrays.toString(argNames)
-            ));
-        }
+        KbRelation relation = createRelation(relName, argNames.length);
 
         int[] arg_nums = new int[argNames.length];
-        for (int i = 0; i < arity; i++) {
-            arg_nums[i] = Argument.constant(numMap.mapName(argNames[i]));
+        for (int i = 0; i < argNames.length; i++) {
+            arg_nums[i] = numMap.mapName(argNames[i]);
         }
         addRecordHandler(relation, new Record(arg_nums));
     }
@@ -298,22 +319,10 @@ public class NumeratedKb {
      * Add a record where arguments are numbers to the KB. A new KbRelation will be created If the relation does not
      * exist in the KB. A KbException will be raised if a number is not mapped to any string in the KB.
      *
-     * Note: the arguments should be encoded values by "constant()/variable" methods in the "Argument" class.
-     *
      * @throws KbException Record arity does not match the relation; Number is not mapped to any string
      */
     public void addRecord(String relName, int[] record) throws KbException {
-        KbRelation relation = getRelation(relName);
-        if (null == relation) {
-            relation = createRelation(relName, record.length);
-        }
-
-        int arity = relation.getArity();
-        if (record.length != arity) {
-            throw new KbException(String.format(
-                    "Record arity (%d) does not match the relation (%d): %s", record.length, arity, Arrays.toString(record)
-            ));
-        }
+        KbRelation relation = createRelation(relName, record.length);
 
         for (int arg: record) {
             if (null == numMap.num2Name(arg)) {
@@ -325,17 +334,7 @@ public class NumeratedKb {
     }
 
     public void addRecord(String relName, Record record) throws KbException {
-        KbRelation relation = getRelation(relName);
-        if (null == relation) {
-            relation = createRelation(relName, record.args.length);
-        }
-
-        int arity = relation.getArity();
-        if (record.args.length != arity) {
-            throw new KbException(String.format(
-                    "Record arity (%d) does not match the relation (%d): %s", record.args.length, arity, record
-            ));
-        }
+        KbRelation relation = createRelation(relName, record.args.length);
 
         for (int arg: record.args) {
             if (null == numMap.num2Name(arg)) {
@@ -370,7 +369,7 @@ public class NumeratedKb {
 
         int[] arg_nums = new int[argNames.length];
         for (int i = 0; i < arity; i++) {
-            arg_nums[i] = Argument.constant(numMap.mapName(argNames[i]));
+            arg_nums[i] = numMap.mapName(argNames[i]);
         }
         addRecordHandler(relation, new Record(arg_nums));
     }
@@ -435,10 +434,7 @@ public class NumeratedKb {
             return;
         }
 
-        KbRelation relation = getRelation(relName);
-        if (null == relation) {
-            relation = createRelation(relName, argNamesArray[0].length);
-        }
+        KbRelation relation = createRelation(relName, argNamesArray[0].length);
 
         int arity = relation.getArity();
         for (String[] arg_names: argNamesArray) {
@@ -451,7 +447,7 @@ public class NumeratedKb {
 
             int[] arg_nums = new int[arg_names.length];
             for (int i = 0; i < arity; i++) {
-                arg_nums[i] = Argument.constant(numMap.mapName(arg_names[i]));
+                arg_nums[i] = numMap.mapName(arg_names[i]);
             }
             addRecordHandler(relation, new Record(arg_nums));
         }
@@ -467,10 +463,7 @@ public class NumeratedKb {
             return;
         }
 
-        KbRelation relation = getRelation(relName);
-        if (null == relation) {
-            relation = createRelation(relName, records[0].length);
-        }
+        KbRelation relation = createRelation(relName, records[0].length);
 
         int arity = relation.getArity();
         for (int[] record: records) {
@@ -495,10 +488,7 @@ public class NumeratedKb {
             return;
         }
 
-        KbRelation relation = getRelation(relName);
-        if (null == relation) {
-            relation = createRelation(relName, records[0].args.length);
-        }
+        KbRelation relation = createRelation(relName, records[0].args.length);
 
         int arity = relation.getArity();
         for (Record record: records) {
@@ -544,7 +534,7 @@ public class NumeratedKb {
 
             int[] arg_nums = new int[arg_names.length];
             for (int i = 0; i < arity; i++) {
-                arg_nums[i] = Argument.constant(numMap.mapName(arg_names[i]));
+                arg_nums[i] = numMap.mapName(arg_names[i]);
             }
             addRecordHandler(relation, new Record(arg_nums));
         }
@@ -624,7 +614,11 @@ public class NumeratedKb {
      * @throws KbException Record arity does not match the relation
      */
     protected void addRecordHandler(KbRelation relation, Record record) throws KbException {
-        relation.addRecord(record);
+        if (relation.addRecord(record)) {
+            for (int arg : record.args) {
+                numSet.add(arg);
+            }
+        }
     }
 
     /**
@@ -639,7 +633,7 @@ public class NumeratedKb {
         if (null != relation) {
             int[] arg_nums = new int[argNames.length];
             for (int i = 0; i < arg_nums.length; i++) {
-                arg_nums[i] = Argument.constant(numMap.name2Num(argNames[i]));
+                arg_nums[i] = numMap.name2Num(argNames[i]);
             }
             removeRecordHandler(relation, new Record(arg_nums));
         }
@@ -670,7 +664,7 @@ public class NumeratedKb {
         if (null != relation) {
             int[] arg_nums = new int[argNames.length];
             for (int i = 0; i < arg_nums.length; i++) {
-                arg_nums[i] = Argument.constant(numMap.name2Num(argNames[i]));
+                arg_nums[i] = numMap.name2Num(argNames[i]);
             }
             removeRecordHandler(relation, new Record(arg_nums));
         }
@@ -694,7 +688,13 @@ public class NumeratedKb {
     }
 
     protected void removeRecordHandler(KbRelation relation, Record record) {
-        relation.removeRecord(record);
+        if (relation.removeRecord(record)) {
+            for (int arg: record.args) {
+                if (0 == numSet.remove(arg)) {
+                    numMap.unmapNumeration(arg);
+                }
+            }
+        }
     }
 
     /**
@@ -709,7 +709,7 @@ public class NumeratedKb {
         if (null != relation) {
             int[] arg_nums = new int[argNames.length];
             for (int i = 0; i < arg_nums.length; i++) {
-                arg_nums[i] = Argument.constant(numMap.name2Num(argNames[i]));
+                arg_nums[i] = numMap.name2Num(argNames[i]);
             }
             return relation.hasRecord(new Record(arg_nums));
         }
@@ -741,7 +741,7 @@ public class NumeratedKb {
         if (null != relation) {
             int[] arg_nums = new int[argNames.length];
             for (int i = 0; i < arg_nums.length; i++) {
-                arg_nums[i] = Argument.constant(numMap.name2Num(argNames[i]));
+                arg_nums[i] = numMap.name2Num(argNames[i]);
             }
             return relation.hasRecord(new Record(arg_nums));
         }
@@ -840,11 +840,21 @@ public class NumeratedKb {
     }
 
     /**
-     * Todo: Tidy up the mapping and records because there may be many mappings that are not used due to removal of
-     * relations and records.
+     * Tidy up the mapping and records because there may be many mappings that are not used due to removal of relations
+     * and records.
      */
-    public void tidyUp() throws KbException {
-        throw new KbException("Not Implemented");
+    public void tidyUp() {
+        Map<Integer, Integer> remap_map = numMap.replaceEmpty();
+        if (remap_map.isEmpty()) {
+            return;
+        }
+        for (KbRelation relation: relations) {
+            for (Record record: relation) {
+                for (int i = 0; i < relation.getArity(); i++) {
+                    record.args[i] = remap_map.getOrDefault(record.args[i], record.args[i]);
+                }
+            }
+        }
     }
 
     @Override

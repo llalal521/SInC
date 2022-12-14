@@ -1,6 +1,9 @@
 package sinc2.util.datagen;
 
+import sinc2.common.Record;
 import sinc2.kb.KbException;
+import sinc2.kb.SimpleKb;
+import sinc2.util.kb.KbRelation;
 import sinc2.util.kb.NumeratedKb;
 
 import java.io.File;
@@ -458,6 +461,168 @@ public class FamilyRelationGenerator {
         kb.dump(basePath);
     }
 
+    public static SimpleKb generateMedium(String kbName, int families, double errorRate) throws IOException, KbException {
+        Random random = new Random();
+        List<Triple> triples = new ArrayList<>();
+
+        /* father/mother */
+        triples.add(new FamilyTriple(FamilyMember.GRAND_FATHER, FamilyRelations.FATHER, FamilyMember.FATHER));
+        triples.add(new FamilyTriple(FamilyMember.GRAND_FATHER, FamilyRelations.FATHER, FamilyMember.UNCLE_A));
+        triples.add(new FamilyTriple(FamilyMember.GRAND_FATHER, FamilyRelations.FATHER, FamilyMember.AUNT_A));
+        triples.add(new FamilyTriple(FamilyMember.GRAND_MOTHER, FamilyRelations.MOTHER, FamilyMember.FATHER));
+        triples.add(new FamilyTriple(FamilyMember.GRAND_MOTHER, FamilyRelations.MOTHER, FamilyMember.UNCLE_A));
+        triples.add(new FamilyTriple(FamilyMember.GRAND_MOTHER, FamilyRelations.MOTHER, FamilyMember.AUNT_A));
+        triples.add(new FamilyTriple(FamilyMember.W_GRAND_FATHER, FamilyRelations.FATHER, FamilyMember.MOTHER));
+        triples.add(new FamilyTriple(FamilyMember.W_GRAND_FATHER, FamilyRelations.FATHER, FamilyMember.AUNT_B));
+        triples.add(new FamilyTriple(FamilyMember.W_GRAND_FATHER, FamilyRelations.FATHER, FamilyMember.UNCLE_B));
+        triples.add(new FamilyTriple(FamilyMember.W_GRAND_MOTHER, FamilyRelations.MOTHER, FamilyMember.MOTHER));
+        triples.add(new FamilyTriple(FamilyMember.W_GRAND_MOTHER, FamilyRelations.MOTHER, FamilyMember.AUNT_B));
+        triples.add(new FamilyTriple(FamilyMember.W_GRAND_MOTHER, FamilyRelations.MOTHER, FamilyMember.UNCLE_B));
+        triples.add(new FamilyTriple(FamilyMember.FATHER, FamilyRelations.FATHER, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.FATHER, FamilyRelations.FATHER, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.MOTHER, FamilyRelations.MOTHER, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.MOTHER, FamilyRelations.MOTHER, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_B, FamilyRelations.MOTHER, FamilyMember.BROTHER));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_B, FamilyRelations.MOTHER, FamilyMember.SISTER));
+
+        /* parent */
+        triples.add(new FamilyTriple(FamilyMember.GRAND_FATHER, FamilyRelations.PARENT, FamilyMember.FATHER));
+        triples.add(new FamilyTriple(FamilyMember.GRAND_FATHER, FamilyRelations.PARENT, FamilyMember.UNCLE_A));
+        triples.add(new FamilyTriple(FamilyMember.GRAND_FATHER, FamilyRelations.PARENT, FamilyMember.AUNT_A));
+        triples.add(new FamilyTriple(FamilyMember.GRAND_MOTHER, FamilyRelations.PARENT, FamilyMember.FATHER));
+        triples.add(new FamilyTriple(FamilyMember.GRAND_MOTHER, FamilyRelations.PARENT, FamilyMember.UNCLE_A));
+        triples.add(new FamilyTriple(FamilyMember.GRAND_MOTHER, FamilyRelations.PARENT, FamilyMember.AUNT_A));
+        triples.add(new FamilyTriple(FamilyMember.W_GRAND_FATHER, FamilyRelations.PARENT, FamilyMember.MOTHER));
+        triples.add(new FamilyTriple(FamilyMember.W_GRAND_FATHER, FamilyRelations.PARENT, FamilyMember.AUNT_B));
+        triples.add(new FamilyTriple(FamilyMember.W_GRAND_FATHER, FamilyRelations.PARENT, FamilyMember.UNCLE_B));
+        triples.add(new FamilyTriple(FamilyMember.W_GRAND_MOTHER, FamilyRelations.PARENT, FamilyMember.MOTHER));
+        triples.add(new FamilyTriple(FamilyMember.W_GRAND_MOTHER, FamilyRelations.PARENT, FamilyMember.AUNT_B));
+        triples.add(new FamilyTriple(FamilyMember.W_GRAND_MOTHER, FamilyRelations.PARENT, FamilyMember.UNCLE_B));
+        triples.add(new FamilyTriple(FamilyMember.FATHER, FamilyRelations.PARENT, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.FATHER, FamilyRelations.PARENT, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.MOTHER, FamilyRelations.PARENT, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.MOTHER, FamilyRelations.PARENT, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_B, FamilyRelations.PARENT, FamilyMember.BROTHER));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_B, FamilyRelations.PARENT, FamilyMember.SISTER));
+
+        /* brother/sister */
+        triples.add(new FamilyTriple(FamilyMember.FATHER, FamilyRelations.BROTHER, FamilyMember.UNCLE_A));
+        triples.add(new FamilyTriple(FamilyMember.FATHER, FamilyRelations.BROTHER, FamilyMember.AUNT_A));
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_A, FamilyRelations.BROTHER, FamilyMember.AUNT_A));
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_A, FamilyRelations.BROTHER, FamilyMember.FATHER));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_A, FamilyRelations.SISTER, FamilyMember.UNCLE_A));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_A, FamilyRelations.SISTER, FamilyMember.FATHER));
+        triples.add(new FamilyTriple(FamilyMember.MOTHER, FamilyRelations.SISTER, FamilyMember.AUNT_B));
+        triples.add(new FamilyTriple(FamilyMember.MOTHER, FamilyRelations.SISTER, FamilyMember.UNCLE_B));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_B, FamilyRelations.SISTER, FamilyMember.MOTHER));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_B, FamilyRelations.SISTER, FamilyMember.UNCLE_B));
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_B, FamilyRelations.BROTHER, FamilyMember.MOTHER));
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_B, FamilyRelations.BROTHER, FamilyMember.AUNT_B));
+        triples.add(new FamilyTriple(FamilyMember.SON, FamilyRelations.BROTHER, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.SON, FamilyRelations.BROTHER, FamilyMember.BROTHER));
+        triples.add(new FamilyTriple(FamilyMember.SON, FamilyRelations.BROTHER, FamilyMember.SISTER));
+        triples.add(new FamilyTriple(FamilyMember.DAUGHTER, FamilyRelations.SISTER, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.DAUGHTER, FamilyRelations.SISTER, FamilyMember.BROTHER));
+        triples.add(new FamilyTriple(FamilyMember.DAUGHTER, FamilyRelations.SISTER, FamilyMember.SISTER));
+        triples.add(new FamilyTriple(FamilyMember.BROTHER, FamilyRelations.BROTHER, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.BROTHER, FamilyRelations.BROTHER, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.BROTHER, FamilyRelations.BROTHER, FamilyMember.SISTER));
+        triples.add(new FamilyTriple(FamilyMember.SISTER, FamilyRelations.SISTER, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.SISTER, FamilyRelations.SISTER, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.SISTER, FamilyRelations.SISTER, FamilyMember.BROTHER));
+
+        /* sibling */
+        triples.add(new FamilyTriple(FamilyMember.FATHER, FamilyRelations.SIBLING, FamilyMember.UNCLE_A));
+        triples.add(new FamilyTriple(FamilyMember.FATHER, FamilyRelations.SIBLING, FamilyMember.AUNT_A));
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_A, FamilyRelations.SIBLING, FamilyMember.AUNT_A));
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_A, FamilyRelations.SIBLING, FamilyMember.FATHER));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_A, FamilyRelations.SIBLING, FamilyMember.UNCLE_A));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_A, FamilyRelations.SIBLING, FamilyMember.FATHER));
+        triples.add(new FamilyTriple(FamilyMember.MOTHER, FamilyRelations.SIBLING, FamilyMember.AUNT_B));
+        triples.add(new FamilyTriple(FamilyMember.MOTHER, FamilyRelations.SIBLING, FamilyMember.UNCLE_B));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_B, FamilyRelations.SIBLING, FamilyMember.MOTHER));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_B, FamilyRelations.SIBLING, FamilyMember.UNCLE_B));
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_B, FamilyRelations.SIBLING, FamilyMember.MOTHER));
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_B, FamilyRelations.SIBLING, FamilyMember.AUNT_B));
+        triples.add(new FamilyTriple(FamilyMember.SON, FamilyRelations.SIBLING, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.SON, FamilyRelations.SIBLING, FamilyMember.BROTHER));
+        triples.add(new FamilyTriple(FamilyMember.SON, FamilyRelations.SIBLING, FamilyMember.SISTER));
+        triples.add(new FamilyTriple(FamilyMember.DAUGHTER, FamilyRelations.SIBLING, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.DAUGHTER, FamilyRelations.SIBLING, FamilyMember.BROTHER));
+        triples.add(new FamilyTriple(FamilyMember.DAUGHTER, FamilyRelations.SIBLING, FamilyMember.SISTER));
+        triples.add(new FamilyTriple(FamilyMember.BROTHER, FamilyRelations.SIBLING, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.BROTHER, FamilyRelations.SIBLING, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.BROTHER, FamilyRelations.SIBLING, FamilyMember.SISTER));
+        triples.add(new FamilyTriple(FamilyMember.SISTER, FamilyRelations.SIBLING, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.SISTER, FamilyRelations.SIBLING, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.SISTER, FamilyRelations.SIBLING, FamilyMember.BROTHER));
+
+        /* uncle/aunt */
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_A, FamilyRelations.UNCLE, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_A, FamilyRelations.UNCLE, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_A, FamilyRelations.AUNT, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_A, FamilyRelations.AUNT, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_B, FamilyRelations.UNCLE, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_B, FamilyRelations.UNCLE, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_B, FamilyRelations.AUNT, FamilyMember.SON));
+        triples.add(new FamilyTriple(FamilyMember.AUNT_B, FamilyRelations.AUNT, FamilyMember.DAUGHTER));
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_B, FamilyRelations.UNCLE, FamilyMember.BROTHER));
+        triples.add(new FamilyTriple(FamilyMember.UNCLE_B, FamilyRelations.UNCLE, FamilyMember.SISTER));
+        triples.add(new FamilyTriple(FamilyMember.MOTHER, FamilyRelations.AUNT, FamilyMember.BROTHER));
+        triples.add(new FamilyTriple(FamilyMember.MOTHER, FamilyRelations.AUNT, FamilyMember.SISTER));
+
+        /* gender */
+        triples.add(new GenderTripe(FamilyMember.GRAND_FATHER, Gender.MALE));
+        triples.add(new GenderTripe(FamilyMember.GRAND_MOTHER, Gender.FEMALE));
+        triples.add(new GenderTripe(FamilyMember.W_GRAND_FATHER, Gender.MALE));
+        triples.add(new GenderTripe(FamilyMember.W_GRAND_MOTHER, Gender.FEMALE));
+        triples.add(new GenderTripe(FamilyMember.FATHER, Gender.MALE));
+        triples.add(new GenderTripe(FamilyMember.UNCLE_A, Gender.MALE));
+        triples.add(new GenderTripe(FamilyMember.AUNT_A, Gender.FEMALE));
+        triples.add(new GenderTripe(FamilyMember.MOTHER, Gender.FEMALE));
+        triples.add(new GenderTripe(FamilyMember.AUNT_B, Gender.FEMALE));
+        triples.add(new GenderTripe(FamilyMember.UNCLE_B, Gender.MALE));
+        triples.add(new GenderTripe(FamilyMember.SON, Gender.MALE));
+        triples.add(new GenderTripe(FamilyMember.DAUGHTER, Gender.FEMALE));
+        triples.add(new GenderTripe(FamilyMember.BROTHER, Gender.MALE));
+        triples.add(new GenderTripe(FamilyMember.SISTER, Gender.FEMALE));
+
+        NumeratedKb kb = new NumeratedKb(kbName);
+        FamilyMember[] familyMemberValues = FamilyMember.values();
+        FamilyRelations[] familyRelationsValues = FamilyRelations.values();
+        for (int i = 0; i < families; i++) {
+
+            /* Perturb correct data */
+            for (Triple triple: triples) {
+                double magic = random.nextDouble();
+                if (errorRate > magic) {
+                    magic = random.nextDouble();
+
+                    /* Determine which type of error it is */
+                    if (errorRate / magic < 2) {
+                        /* Alter constant */
+                        if (triple instanceof GenderTripe) {
+                            GenderTripe triple_gender = (GenderTripe)triple;
+                            triple_gender.gender = (Gender.MALE == triple_gender.gender)? Gender.FEMALE: Gender.MALE;
+                        } else if (triple instanceof FamilyTriple) {
+                            FamilyTriple triple_family = (FamilyTriple) triple;
+                            triple_family.subject = familyMemberValues[random.nextInt(familyMemberValues.length)];
+                            triple_family.familyRelations =
+                                    familyRelationsValues[random.nextInt(familyRelationsValues.length)];
+                            triple_family.object = familyMemberValues[random.nextInt(familyMemberValues.length)];
+                        }
+                        writeRelation(kb, triple, random.nextInt(families), random.nextInt(families));
+                    }
+                    /* Other wise omit writing to represent missing triple */
+                } else {
+                    writeRelation(kb, triple, i, i);
+                }
+            }
+        }
+
+        return convertKb(kb);
+    }
+
     /**
      * Create a numerated KB and write down a meta file for the configurations.
      *
@@ -493,7 +658,6 @@ public class FamilyRelationGenerator {
             relation = triple_family.familyRelations.name;
             subject = String.format("%s_%d", triple_family.subject.shortName, subjId);
             object = String.format("%s_%d", triple_family.object.shortName, objId);
-            kb.addRecord(relation, new String[]{subject, object});
         } else if (triple instanceof GenderTripe) {
             GenderTripe triple_gender = (GenderTripe)triple;
             relation = OtherRelation.GENDER.name;
@@ -507,5 +671,41 @@ public class FamilyRelationGenerator {
         writer.print(object);
         writer.print('\n');
         kb.addRecord(relation, new String[]{subject, object});
+    }
+
+    protected static void writeRelation(NumeratedKb kb, Triple triple, int subjId, int objId) throws KbException {
+        String relation = null;
+        String subject = null;
+        String object = null;
+        if (triple instanceof FamilyTriple) {
+            FamilyTriple triple_family = (FamilyTriple)triple;
+            relation = triple_family.familyRelations.name;
+            subject = String.format("%s_%d", triple_family.subject.shortName, subjId);
+            object = String.format("%s_%d", triple_family.object.shortName, objId);
+        } else if (triple instanceof GenderTripe) {
+            GenderTripe triple_gender = (GenderTripe)triple;
+            relation = OtherRelation.GENDER.name;
+            subject = String.format("%s_%d", triple_gender.subject.shortName, subjId);
+            object = triple_gender.gender.name;
+        }
+        kb.addRecord(relation, new String[]{subject, object});
+    }
+
+    protected static SimpleKb convertKb(NumeratedKb kb) {
+        kb.tidyUp();
+        int[][][] new_relations = new int[kb.totalRelations()][][];
+        String[] rel_names = new String[kb.totalRelations()];
+        for (int rel_idx = 0; rel_idx < new_relations.length; rel_idx++) {
+            KbRelation relation = kb.getRelation(rel_idx);
+            rel_names[rel_idx] = relation.getName();
+            int[][] new_relation = new int[relation.totalRecords()][];
+            new_relations[rel_idx] = new_relation;
+            int row_idx = 0;
+            for (Record record: relation) {
+                new_relation[row_idx] = record.args;
+                row_idx++;
+            }
+        }
+        return new SimpleKb(kb.getName(), new_relations, rel_names);
     }
 }

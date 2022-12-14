@@ -85,6 +85,35 @@ public abstract class SInC {
             writer = new PrintWriter(System.out);
         }
         this.logger = writer;
+
+        Rule.MIN_FACT_COVERAGE = config.minFactCoverage;
+        SimpleRelation.MIN_CONSTANT_COVERAGE = config.minConstantCoverage;
+    }
+
+    /**
+     * Create a SInC object with configurations and a KB in memory. If the KB is not NULL, the input KB will be the one
+     * in the memory instead of loading from file system.
+     *
+     * @param config The configurations
+     * @param kb     The KB object in memory
+     * @throws SincException Dump path creation failure
+     */
+    public SInC(SincConfig config, SimpleKb kb) throws SincException {
+        this.config = config;
+        this.kb = kb;
+
+        /* Create writer objects to log and std output files */
+        File dump_kb_dir = Paths.get(config.dumpPath, config.dumpName).toFile();
+        if (!dump_kb_dir.exists() && !dump_kb_dir.mkdirs()) {
+            throw new SincException("Dump path creation failed.");
+        }
+        PrintWriter writer;
+        try {
+            writer = new PrintWriter(Paths.get(config.dumpPath, config.dumpName, LOG_FILE_NAME).toFile());
+        } catch (IOException e) {
+            writer = new PrintWriter(System.out);
+        }
+        this.logger = writer;
         PrintStream stream;
         try {
             stream = new PrintStream(Paths.get(config.dumpPath, config.dumpName, STD_OUTPUT_FILE_NAME).toFile());
@@ -104,9 +133,7 @@ public abstract class SInC {
      * Load a KB (in the format of Numerated KB) and return the KB
      */
     protected SimpleKb loadKb() throws KbException, IOException {
-        SimpleKb kb =  new SimpleKb(config.kbName, config.basePath, true);
-        kb.updatePromisingConstants();
-        return kb;
+        return new SimpleKb(config.kbName, config.basePath);
     }
 
     /**
@@ -204,7 +231,10 @@ public abstract class SInC {
         /* Load KB */
         long time_start = System.currentTimeMillis();
         try {
-            kb = loadKb();
+            if (null == kb) {
+                kb = loadKb();
+            }
+            kb.updatePromisingConstants();
         } catch (KbException | IOException e) {
             e.printStackTrace(logger);
             logError("KB load failed, abort.");
@@ -330,6 +360,20 @@ public abstract class SInC {
      * Run the compression and an interruption daemon.
      */
     public final void run() {
+        /* Set out/err stream to an output file */
+        PrintStream stream;
+        PrintStream original_out = System.out;
+        PrintStream original_err = System.err;
+        try {
+            stream = new PrintStream(Paths.get(config.dumpPath, config.dumpName, STD_OUTPUT_FILE_NAME).toFile());
+        } catch (IOException e) {
+            stream = null;
+        }
+        if (null != stream) {
+            System.setOut(stream);
+            System.setErr(stream);
+        }
+
         interrupted = false;
         Thread task = new Thread(this::compress);
         task.start();
@@ -357,5 +401,9 @@ public abstract class SInC {
             }
             logger.flush();
         }
+
+        /* Recover the out/err streams */
+        System.setOut(original_out);
+        System.setErr(original_err);
     }
 }

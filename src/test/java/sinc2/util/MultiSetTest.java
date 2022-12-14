@@ -1,8 +1,7 @@
 package sinc2.util;
 
 import org.junit.jupiter.api.Test;
-import sinc.common.ArgIndicator;
-import sinc.common.VarIndicator;
+import sinc2.common.ArgIndicator;
 
 import java.util.HashSet;
 import java.util.List;
@@ -58,14 +57,14 @@ class MultiSetTest {
         s1.add("a");
         s1.add("b");
         s1.add("a");
-        s1.remove("a");
-        s1.remove("c");
+        assertEquals(1, s1.remove("a"));
+        assertEquals(0, s1.remove("c"));
 
         MultiSet<String> s2 = new MultiSet<>();
         s2.add("b");
         s2.add("a");
-        s1.remove("d");
-        s1.remove("c");
+        assertEquals(0, s1.remove("d"));
+        assertEquals(0, s1.remove("c"));
 
         assertEquals(2, s1.size());
         assertEquals(2, s2.size());
@@ -158,15 +157,13 @@ class MultiSetTest {
 
     @Test
     void testEquality() {
-        final String PARENT = "parent";
-        final String FATHER = "father";
         final MultiSet<ArgIndicator> set1 = new MultiSet<>();
-        set1.add(new VarIndicator(PARENT, 1));
-        set1.add(new VarIndicator(FATHER, 0));
+        set1.add(ArgIndicator.getVariableIndicator(1, 1));
+        set1.add(ArgIndicator.getVariableIndicator(0, 0));
 
         final MultiSet<ArgIndicator> set2 = new MultiSet<>();
-        set2.add(new VarIndicator(PARENT, 1));
-        set2.add(new VarIndicator(FATHER, 0));
+        set2.add(ArgIndicator.getVariableIndicator(1, 1));
+        set2.add(ArgIndicator.getVariableIndicator(0, 0));
 
         assertEquals(set1, set2);
 

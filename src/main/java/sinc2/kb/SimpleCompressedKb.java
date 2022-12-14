@@ -39,6 +39,8 @@ public class SimpleCompressedKb {
     public static final String HYPOTHESIS_FILE_NAME = "rules.hyp";
     /** The name of the second mapping file for the supplementary constants */
     public static final String SUPPLEMENTARY_CONSTANTS_FILE_NAME = "supplementary.cst";
+    /** The number of bit flags in one integer */
+    protected static final int BITS_PER_INT = Integer.BYTES * 8;
 
     public static Path getCounterexampleFilePath(String kbPath, String relName, int arity, int records) {
         return Paths.get(kbPath, String.format("%s_%d_%d.ceg", relName, arity, records));
@@ -100,16 +102,16 @@ public class SimpleCompressedKb {
      * Update the supplementary constant set.
      */
     public void updateSupplementaryConstants() {
-        /* Find all constants */
-        Set<Integer> lost_constants = new HashSet<>(originalKb.allConstants());
+        /* Build flags for all constants */
+        int[] flags = new int[originalKb.totalConstants() / BITS_PER_INT + ((0 == originalKb.totalConstants() % BITS_PER_INT) ? 0 : 1)];
 
         /* Remove all occurred arguments*/
         for (int i = 0; i < originalKb.totalRelations(); i++) {
             SimpleRelation relation = originalKb.getRelation(i);
-            relation.removeReservedConstants(lost_constants);
+            relation.setFlagOfReservedConstants(flags);
             for (int[] record: fvsRecords[i]) {
                 for (int arg: record) {
-                    lost_constants.remove(arg);
+                    flags[arg / BITS_PER_INT] |= 1 << (arg % BITS_PER_INT);
                 }
             }
         }
@@ -117,19 +119,33 @@ public class SimpleCompressedKb {
             for (int pred_idx = 0; pred_idx < rule.predicates(); pred_idx++) {
                 for (int argument: rule.getPredicate(pred_idx).args) {
                     if (Argument.isConstant(argument)) {
-                        lost_constants.remove(Argument.decode(argument));
+                        int arg = Argument.decode(argument);
+                        flags[arg / BITS_PER_INT] |= 1 << (arg % BITS_PER_INT);
                     }
                 }
             }
         }
         for (Set<Record> counterexample_set: counterexampleSets) {
             for (Record record: counterexample_set) {
-                for (int argument: record.args) {
-                    lost_constants.remove(argument);
+                for (int arg: record.args) {
+                    flags[arg / BITS_PER_INT] |= 1 << (arg % BITS_PER_INT);
                 }
             }
         }
-        supplementaryConstants = lost_constants;
+
+        /* Find all integers that are not flagged */
+        supplementaryConstants = new HashSet<>();
+        int base_offset = 0;
+        for (int sub_flag: flags) {
+            for (int i = 0; i < BITS_PER_INT && base_offset + i < originalKb.totalConstants(); i++) {
+                if (0 == (sub_flag & 1)) {
+                    supplementaryConstants.add(base_offset + i);
+                }
+                sub_flag >>= 1;
+            }
+            base_offset += BITS_PER_INT;
+        }
+        supplementaryConstants.remove(0);   // 0 is added in the set and should be discarded
     }
 
     /**

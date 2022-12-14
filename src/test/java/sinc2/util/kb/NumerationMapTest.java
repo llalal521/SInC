@@ -12,8 +12,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 class NumerationMapTest {
 
@@ -75,14 +74,14 @@ class NumerationMapTest {
     void testRead() {
         NumerationMap map = new NumerationMap(testKbManager.getKbPath());
 
-        assertEquals(17, map.totalMappings());
-        assertEquals(17, map.numMap.size());
+        assertEquals(14, map.totalMappings());
+        assertEquals(14, map.numMap.size());
         assertEquals(18, map.numArray.size());
-        assertEquals(0, map.freeNums.size());
+        assertEquals(3, map.freeNums.size());
 
-        assertEquals("family", map.num2Name(0x1));
-        assertEquals("mother", map.num2Name(0x2));
-        assertEquals("father", map.num2Name(0x3));
+        assertNull(map.num2Name(0x1));
+        assertNull(map.num2Name(0x2));
+        assertNull(map.num2Name(0x3));
         assertEquals("alice", map.num2Name(0x4));
         assertEquals("bob", map.num2Name(0x5));
         assertEquals("catherine", map.num2Name(0x6));
@@ -98,9 +97,9 @@ class NumerationMapTest {
         assertEquals("marvin", map.num2Name(0x10));
         assertEquals("nataly", map.num2Name(0x11));
 
-        assertEquals(0x1, map.name2Num("family"));
-        assertEquals(0x2, map.name2Num("mother"));
-        assertEquals(0x3, map.name2Num("father"));
+        assertEquals(NumerationMap.NUM_NULL, map.name2Num("family"));
+        assertEquals(NumerationMap.NUM_NULL, map.name2Num("mother"));
+        assertEquals(NumerationMap.NUM_NULL, map.name2Num("father"));
         assertEquals(0x4, map.name2Num("alice"));
         assertEquals(0x5, map.name2Num("bob"));
         assertEquals(0x6, map.name2Num("catherine"));
@@ -149,12 +148,12 @@ class NumerationMapTest {
     void testWrite1() throws IOException {
         NumerationMap map = new NumerationMap(testKbManager.getKbPath());
         String tmp_dir_path = testKbManager.createTmpDir();
-        map.dump(tmp_dir_path, 1, 2);
+        map.dump(tmp_dir_path, 2);
         NumerationMap map2 = new NumerationMap(tmp_dir_path);
 
         assertEquals(map.totalMappings(), map2.totalMappings());
-        assertEquals(map.numMap.size(), map2.numMap.size());
-        assertEquals(map.numArray.size(), map2.numArray.size());
+        assertEquals(map.numMap, map2.numMap);
+        assertEquals(map.numArray, map2.numArray);
 
         Set<String> map_files = new HashSet<>(List.of(
                 "map1.tsv", "map2.tsv", "map3.tsv", "map4.tsv", "map5.tsv", "map6.tsv", "map7.tsv", "map8.tsv", "map9.tsv"
@@ -187,8 +186,8 @@ class NumerationMapTest {
         NumerationMap map2 = new NumerationMap(testKbManager.getKbPath(), "testmap.tsv");
 
         assertEquals(map.totalMappings(), map2.totalMappings());
-        assertEquals(map.numMap.size(), map2.numMap.size());
-        assertEquals(map.numArray.size(), map2.numArray.size());
+        assertEquals(map.numMap, map2.numMap);
+        assertEquals(map.numArray, map2.numArray);
         for (Map.Entry<String, Integer> entry: map.numMap.entrySet()) {
             assertEquals(entry.getValue(), map2.name2Num(entry.getKey()));
             assertEquals(entry.getKey(), map2.num2Name(entry.getValue()));
@@ -207,9 +206,11 @@ class NumerationMapTest {
         assertEquals(4, map.mapName("alice"));
         assertEquals(17, map.mapName("nataly"));
 
-        assertEquals(18, map.mapName("a"));
-        assertEquals(19, map.mapName("b"));
-        assertEquals(20, map.mapName("c"));
+        assertEquals(2, map.mapName("a"));
+        assertEquals(3, map.mapName("b"));
+        assertEquals(18, map.mapName("c"));
+        assertEquals(19, map.mapName("d"));
+        assertEquals(20, map.mapName("e"));
 
         assertEquals(20, map.totalMappings());
         assertEquals(20, map.numMap.size());
@@ -222,17 +223,17 @@ class NumerationMapTest {
         NumerationMap map = new NumerationMap(testKbManager.getKbPath());
 
         assertEquals(NumerationMap.NUM_NULL, map.unmapName("a"));
-        assertEquals(1, map.unmapName("family"));
+        assertEquals(NumerationMap.NUM_NULL, map.unmapName("family"));
         assertEquals(4, map.unmapName("alice"));
         assertEquals(17, map.unmapName("nataly"));
         assertEquals(NumerationMap.NUM_NULL, map.unmapName("family"));
         assertEquals(NumerationMap.NUM_NULL, map.unmapName("alice"));
         assertEquals(NumerationMap.NUM_NULL, map.unmapName("nataly"));
 
-        assertEquals(14, map.totalMappings());
-        assertEquals(14, map.numMap.size());
+        assertEquals(12, map.totalMappings());
+        assertEquals(12, map.numMap.size());
         assertEquals(18, map.numArray.size());
-        assertEquals(3, map.freeNums.size());
+        assertEquals(5, map.freeNums.size());
     }
 
     @Test
@@ -241,40 +242,40 @@ class NumerationMapTest {
 
         assertNull(map.unmapNumeration(0));
         assertNull(map.unmapNumeration(18));
-        assertEquals("family", map.unmapNumeration(1));
+        assertNull(map.unmapNumeration(1));
         assertEquals("alice", map.unmapNumeration(4));
         assertEquals("nataly", map.unmapNumeration(17));
         assertNull(map.unmapNumeration(1));
         assertNull(map.unmapNumeration(4));
         assertNull(map.unmapNumeration(17));
 
-        assertEquals(14, map.totalMappings());
-        assertEquals(14, map.numMap.size());
+        assertEquals(12, map.totalMappings());
+        assertEquals(12, map.numMap.size());
         assertEquals(18, map.numArray.size());
-        assertEquals(3, map.freeNums.size());
+        assertEquals(5, map.freeNums.size());
     }
 
     @Test
     void testMappingWithUnmapping() {
         NumerationMap map = new NumerationMap(testKbManager.getKbPath());
 
-        assertEquals(1, map.unmapName("family"));
+        assertEquals(NumerationMap.NUM_NULL, map.unmapName("family"));
         assertEquals(4, map.unmapName("alice"));
         assertEquals(17, map.unmapName("nataly"));
         assertEquals(1, map.mapName("FAMILY"));
-        assertEquals(4, map.mapName("ALICE"));
-        assertEquals(17, map.mapName("NATALY"));
+        assertEquals(2, map.mapName("ALICE"));
+        assertEquals(3, map.mapName("NATALY"));
 
-        assertEquals(18, map.mapName("a"));
-        assertEquals(19, map.mapName("b"));
-        assertEquals(20, map.mapName("c"));
-        assertEquals("a", map.unmapNumeration(18));
-        assertEquals("b", map.unmapNumeration(19));
-        assertEquals("c", map.unmapNumeration(20));
+        assertEquals(4, map.mapName("a"));
+        assertEquals(17, map.mapName("b"));
+        assertEquals(18, map.mapName("c"));
+        assertEquals("a", map.unmapNumeration(4));
+        assertEquals("b", map.unmapNumeration(17));
+        assertEquals("c", map.unmapNumeration(18));
 
-        assertEquals(17, map.totalMappings());
-        assertEquals(17, map.numMap.size());
-        assertEquals(21, map.numArray.size());
+        assertEquals(15, map.totalMappings());
+        assertEquals(15, map.numMap.size());
+        assertEquals(19, map.numArray.size());
         assertEquals(3, map.freeNums.size());
     }
 
@@ -283,9 +284,6 @@ class NumerationMapTest {
         NumerationMap map = new NumerationMap(testKbManager.getKbPath());
 
         Set<Pair<String, Integer>> expected_str2int_entry_set = new HashSet<>(List.of(
-                new Pair<>("family", 0x1),
-                new Pair<>("mother", 0x2),
-                new Pair<>("father", 0x3),
                 new Pair<>("alice", 0x4),
                 new Pair<>("bob", 0x5),
                 new Pair<>("catherine", 0x6),
@@ -302,9 +300,6 @@ class NumerationMapTest {
                 new Pair<>("nataly", 0x11)
         ));
         Set<Pair<Integer, String>> expected_int2str_pair_set = new HashSet<>(List.of(
-                new Pair<>(0x1, "family"),
-                new Pair<>(0x2, "mother"),
-                new Pair<>(0x3, "father"),
                 new Pair<>(0x4, "alice"),
                 new Pair<>(0x5, "bob"),
                 new Pair<>(0x6, "catherine"),
@@ -342,5 +337,40 @@ class NumerationMapTest {
         NumerationMap map = new NumerationMap();
         assertEquals(NumerationMap.NUM_NULL, map.name2Num("name"));
         assertNull(map.num2Name(1));
+    }
+
+    @Test
+    void testReplaceEmpty() {
+        Map<String, Integer> existing_mapping = new HashMap<>();
+        existing_mapping.put("a", 1);
+        existing_mapping.put("b", 2);
+        existing_mapping.put("d", 4);
+        existing_mapping.put("g", 7);
+        existing_mapping.put("z", 26);
+        existing_mapping.put("last", 27);
+        NumerationMap map = new NumerationMap(existing_mapping);
+        assertEquals(27, map.unmapName("last"));
+
+        Map<Integer, Integer> expected_remap = new HashMap<>();
+        expected_remap.put(26, 3);
+        expected_remap.put(7, 5);
+        List<String> expected_num_array = new ArrayList<>();
+        expected_num_array.add(null);
+        expected_num_array.add("a");
+        expected_num_array.add("b");
+        expected_num_array.add("z");
+        expected_num_array.add("d");
+        expected_num_array.add("g");
+        Map<String, Integer> expected_num_map = new HashMap<>();
+        expected_num_map.put("a", 1);
+        expected_num_map.put("b", 2);
+        expected_num_map.put("d", 4);
+        expected_num_map.put("g", 5);
+        expected_num_map.put("z", 3);
+
+        assertEquals(expected_remap, map.replaceEmpty());
+        assertEquals(expected_num_array, map.numArray);
+        assertEquals(expected_num_map, map.numMap);
+        assertTrue(map.freeNums.isEmpty());
     }
 }

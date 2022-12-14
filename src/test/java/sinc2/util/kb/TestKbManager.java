@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 public class TestKbManager {
     public static final String MEM_DIR = "/dev/shm";
 
@@ -32,39 +34,39 @@ public class TestKbManager {
 
     protected void createTestKb() throws IOException {
         File kb_dir = new File(kbPath);
-        kb_dir.mkdir();
+        assertTrue(kb_dir.mkdir());
         createTestMapFiles();
         createTestRelationFiles();
     }
 
     protected void createTestMapFiles() throws FileNotFoundException {
         PrintWriter writer = new PrintWriter(NumerationMap.getMapFilePath(kbPath, 1).toFile());
-        writer.println("family\t1");
-        writer.println("mother\t2");
-        writer.println("father\t3");
+        writer.println("");
+        writer.println("");
+        writer.println("");
         writer.close();
 
         writer = new PrintWriter(NumerationMap.getMapFilePath(kbPath, 2).toFile());
-        writer.println("alice\t4");
-        writer.println("bob\t5");
-        writer.println("catherine\t6");
-        writer.println("diana\t7");
-        writer.println("erick\t8");
-        writer.println("frederick\t9");
+        writer.println("alice");
+        writer.println("bob");
+        writer.println("catherine");
+        writer.println("diana");
+        writer.println("erick");
+        writer.println("frederick");
         writer.close();
 
         writer = new PrintWriter(NumerationMap.getMapFilePath(kbPath, 3).toFile());
-        writer.println("gabby\ta");
-        writer.println("harry\tb");
-        writer.println("isaac\tc");
-        writer.println("jena\td");
-        writer.println("kyle\te");
-        writer.println("lily\tf");
+        writer.println("gabby");
+        writer.println("harry");
+        writer.println("isaac");
+        writer.println("jena");
+        writer.println("kyle");
+        writer.println("lily");
         writer.close();
 
         writer = new PrintWriter(NumerationMap.getMapFilePath(kbPath, 4).toFile());
-        writer.println("marvin\t10");
-        writer.println("nataly\t11");
+        writer.println("marvin");
+        writer.println("nataly");
         writer.close();
     }
 
@@ -109,7 +111,7 @@ public class TestKbManager {
 
     protected void createTestCkb() throws IOException {
         File ckb_dir = new File(ckbPath);
-        ckb_dir.mkdir();
+        assertTrue(ckb_dir.mkdir());
         createCkbMapFiles();
         createCkbNecessaryRelationFiles();
         createHypothesisFile();
@@ -118,32 +120,32 @@ public class TestKbManager {
 
     protected void createCkbMapFiles() throws FileNotFoundException {
         PrintWriter writer = new PrintWriter(NumerationMap.getMapFilePath(ckbPath, 1).toFile());
-        writer.println("family\t1");
-        writer.println("mother\t2");
-        writer.println("father\t3");
+        writer.println("");
+        writer.println("");
+        writer.println("");
         writer.close();
 
         writer = new PrintWriter(NumerationMap.getMapFilePath(ckbPath, 2).toFile());
-        writer.println("alice\t4");
-        writer.println("bob\t5");
-        writer.println("catherine\t6");
-        writer.println("diana\t7");
-        writer.println("erick\t8");
-        writer.println("frederick\t9");
+        writer.println("alice");
+        writer.println("bob");
+        writer.println("catherine");
+        writer.println("diana");
+        writer.println("erick");
+        writer.println("frederick");
         writer.close();
 
         writer = new PrintWriter(NumerationMap.getMapFilePath(ckbPath, 3).toFile());
-        writer.println("gabby\ta");
-        writer.println("harry\tb");
-        writer.println("isaac\tc");
-        writer.println("jena\td");
-        writer.println("kyle\te");
-        writer.println("lily\tf");
+        writer.println("gabby");
+        writer.println("harry");
+        writer.println("isaac");
+        writer.println("jena");
+        writer.println("kyle");
+        writer.println("lily");
         writer.close();
 
         writer = new PrintWriter(NumerationMap.getMapFilePath(ckbPath, 4).toFile());
-        writer.println("marvin\t10");
-        writer.println("nataly\t11");
+        writer.println("marvin");
+        writer.println("nataly");
         writer.close();
     }
 
@@ -194,10 +196,10 @@ public class TestKbManager {
                 if (f.isDirectory()) {
                     removeDir(f.getAbsolutePath().toString());
                 } else {
-                    f.delete();
+                    assertTrue(f.delete());
                 }
             }
-            dir.delete();
+            assertTrue(dir.delete());
         }
     }
 
@@ -212,7 +214,7 @@ public class TestKbManager {
     public String createTmpDir() {
         String tmp_dir = UUID.randomUUID().toString();
         Path tmp_dir_path = Paths.get(TestKbManager.MEM_DIR, tmp_dir);
-        tmp_dir_path.toFile().mkdir();
+        assertTrue(tmp_dir_path.toFile().mkdir());
         tempDirs.add(tmp_dir_path.toString());
         return tmp_dir_path.toString();
     }
@@ -224,7 +226,7 @@ public class TestKbManager {
             removeDir(dir_path);
         }
         for (String file_path: tempFiles) {
-            new File(file_path).delete();
+            assertTrue(new File(file_path).delete());
         }
     }
 
