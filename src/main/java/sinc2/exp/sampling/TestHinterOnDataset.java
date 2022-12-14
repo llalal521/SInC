@@ -11,7 +11,7 @@ import java.io.IOException;
 public class TestHinterOnDataset {
     static final int DUP = 1;
 
-    static void runHinter(String kbPath, String kbName, int budget) throws IOException {
+    static void runHinter(String kbName, String kbPath, int budget) throws IOException {
         System.out.println("Loading KB ...");
         SimpleKb original_kb = new SimpleKb(kbName, kbPath);
 
@@ -20,7 +20,7 @@ public class TestHinterOnDataset {
         double tau_threshold = 0.5;
         String[] template_names = new String[]{"TypeInference", "Reflexive", "Subsumption", "Dual", "Transition", "SharedSourceSink"};
         String output_dir = "/dev/shm/TestHinterOnSampledKb";
-        PredefinedHinter.run(original_kb, coverage_threshold, tau_threshold, template_names, output_dir);
+//        PredefinedHinter.run(original_kb, coverage_threshold, tau_threshold, template_names, output_dir);
 
         HeadSampler head_sampler = new HeadSampler();
         TailSampler tail_sampler = new TailSampler();
