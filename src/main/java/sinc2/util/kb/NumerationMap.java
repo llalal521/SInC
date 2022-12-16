@@ -382,4 +382,24 @@ public class NumerationMap {
         numArray.subList(last_num+1, numArray.size()).clear();
         return remap;
     }
+
+    /**
+     * Rearrange the mapping between name strings and numerations. The method will be skipped if the size of the rearrangement
+     * does not match the original mapping.
+     *
+     * @param oldNum2New The mapping from old numeration to new. I.e., oldNum2New[old_num] = new_num.
+     */
+    public void rearrange(int[] oldNum2New) {
+        if (oldNum2New.length != numArray.size()) {
+            return;
+        }
+        for (Map.Entry<String, Integer> entry: numMap.entrySet()) {
+            int new_num = oldNum2New[entry.getValue()];
+            entry.setValue(new_num);
+            numArray.set(new_num, entry.getKey());
+        }
+        for (Integer free_num: freeNums) {
+            numArray.set(oldNum2New[free_num], null);
+        }
+    }
 }

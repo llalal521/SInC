@@ -816,7 +816,7 @@ public class NumeratedKb {
     }
 
     public Collection<KbRelation> getRelations() {
-        return relationMap.values();
+        return relations;
     }
 
     public NumerationMap getNumerationMap() {
@@ -855,6 +855,16 @@ public class NumeratedKb {
                 }
             }
         }
+    }
+
+    /**
+     * Rearrange the mapping between name strings and numerations. The method will be skipped if the size of the rearrangement
+     * does not match the original mapping.
+     *
+     * @param oldNum2New The mapping from old numeration to new. I.e., oldNum2New[old_num] = new_num.
+     */
+    public void rearrangeMapping(int[] oldNum2New) {
+        numMap.rearrange(oldNum2New);
     }
 
     @Override

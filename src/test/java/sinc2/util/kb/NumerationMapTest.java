@@ -373,4 +373,59 @@ class NumerationMapTest {
         assertEquals(expected_num_map, map.numMap);
         assertTrue(map.freeNums.isEmpty());
     }
+
+    @Test
+    void testRearrange1() {
+        NumerationMap map = new NumerationMap();
+        assertEquals(1, map.mapName("a"));
+        assertEquals(2, map.mapName("b"));
+        assertEquals(3, map.mapName("c"));
+        assertEquals(4, map.mapName("d"));
+        assertEquals(5, map.mapName("e"));
+        map.rearrange(new int[]{0, 5, 4, 3, 2, 1});
+        assertEquals(5, map.name2Num("a"));
+        assertEquals(4, map.name2Num("b"));
+        assertEquals(3, map.name2Num("c"));
+        assertEquals(2, map.name2Num("d"));
+        assertEquals(1, map.name2Num("e"));
+        assertEquals("a", map.num2Name(5));
+        assertEquals("b", map.num2Name(4));
+        assertEquals("c", map.num2Name(3));
+        assertEquals("d", map.num2Name(2));
+        assertEquals("e", map.num2Name(1));
+    }
+
+    @Test
+    void testRearrange2() {
+        Map<String, Integer> existing_mapping = new HashMap<>();
+        existing_mapping.put("a", 1);
+        existing_mapping.put("b", 2);
+        existing_mapping.put("d", 4);
+        existing_mapping.put("g", 7);
+        existing_mapping.put("z", 26);
+        NumerationMap map = new NumerationMap(existing_mapping);
+        int[] old_2_new = new int[27];
+        for (int old = 1; old < 27; old++) {
+            old_2_new[old] = 27-old;
+        }
+        map.rearrange(old_2_new);
+        assertEquals(26, map.name2Num("a"));
+        assertEquals(25, map.name2Num("b"));
+        assertEquals(23, map.name2Num("d"));
+        assertEquals(20, map.name2Num("g"));
+        assertEquals(1, map.name2Num("z"));
+        assertEquals("a", map.num2Name(26));
+        assertEquals("b", map.num2Name(25));
+        assertEquals("d", map.num2Name(23));
+        assertEquals("g", map.num2Name(20));
+        assertEquals("z", map.num2Name(1));
+        for (int i = 1; i < 27; i++) {
+            switch (i) {
+                case 1: case 20: case 23: case 25: case 26:
+                    break;
+                default:
+                    assertNull(map.num2Name(i));
+            }
+        }
+    }
 }
