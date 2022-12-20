@@ -34,7 +34,7 @@ public class TestKbManager {
 
     protected void createTestKb() throws IOException {
         File kb_dir = new File(kbPath);
-        assertTrue(kb_dir.mkdir());
+        assertTrue(kb_dir.mkdirs());
         createTestMapFiles();
         createTestRelationFiles();
     }
@@ -71,7 +71,15 @@ public class TestKbManager {
     }
 
     protected void createTestRelationFiles() throws IOException {
-        FileOutputStream fos = new FileOutputStream(KbRelation.getRelFilePath(kbPath, "family", 3, 4).toFile());
+        /* Create relation name mapping */
+        PrintWriter writer = new PrintWriter(NumeratedKb.getRelInfoFilePath(kbName, MEM_DIR).toFile());
+        writer.println("family\t3\t4");
+        writer.println("mother\t2\t4");
+        writer.println("father\t2\t4");
+        writer.close();
+
+        /* Create relation data files */
+        FileOutputStream fos = new FileOutputStream(Paths.get(kbPath, "0.rel").toFile());
         fos.write(LittleEndianIntIO.leInt2ByteArray(4));
         fos.write(LittleEndianIntIO.leInt2ByteArray(5));
         fos.write(LittleEndianIntIO.leInt2ByteArray(6));
@@ -86,7 +94,7 @@ public class TestKbManager {
         fos.write(LittleEndianIntIO.leInt2ByteArray(0xf));
         fos.close();
 
-        fos = new FileOutputStream(KbRelation.getRelFilePath(kbPath, "mother", 2, 4).toFile());
+        fos = new FileOutputStream(Paths.get(kbPath, "1.rel").toFile());
         fos.write(LittleEndianIntIO.leInt2ByteArray(4));
         fos.write(LittleEndianIntIO.leInt2ByteArray(6));
         fos.write(LittleEndianIntIO.leInt2ByteArray(7));
@@ -97,7 +105,7 @@ public class TestKbManager {
         fos.write(LittleEndianIntIO.leInt2ByteArray(0xf));
         fos.close();
 
-        fos = new FileOutputStream(KbRelation.getRelFilePath(kbPath, "father", 2, 4).toFile());
+        fos = new FileOutputStream(Paths.get(kbPath, "2.rel").toFile());
         fos.write(LittleEndianIntIO.leInt2ByteArray(5));
         fos.write(LittleEndianIntIO.leInt2ByteArray(6));
         fos.write(LittleEndianIntIO.leInt2ByteArray(8));
@@ -111,7 +119,7 @@ public class TestKbManager {
 
     protected void createTestCkb() throws IOException {
         File ckb_dir = new File(ckbPath);
-        assertTrue(ckb_dir.mkdir());
+        assertTrue(ckb_dir.mkdirs());
         createCkbMapFiles();
         createCkbNecessaryRelationFiles();
         createHypothesisFile();
@@ -150,7 +158,15 @@ public class TestKbManager {
     }
 
     protected void createCkbNecessaryRelationFiles() throws IOException {
-        FileOutputStream fos = new FileOutputStream(KbRelation.getRelFilePath(ckbPath, "family", 3, 3).toFile());
+        /* Create relation name mapping */
+        PrintWriter writer = new PrintWriter(NumeratedKb.getRelInfoFilePath(ckbName, MEM_DIR).toFile());
+        writer.println("family\t3\t4");
+        writer.println("mother\t2\t4");
+        writer.println("father\t2\t4");
+        writer.close();
+
+        /* Create relation data files */
+        FileOutputStream fos = new FileOutputStream(Paths.get(ckbPath, "0.rel").toFile());
         fos.write(LittleEndianIntIO.leInt2ByteArray(7));
         fos.write(LittleEndianIntIO.leInt2ByteArray(8));
         fos.write(LittleEndianIntIO.leInt2ByteArray(9));
@@ -171,16 +187,12 @@ public class TestKbManager {
     }
 
     protected void createCounterexampleFiles() throws IOException {
-        FileOutputStream fos = new FileOutputStream(SimpleCompressedKb.getCounterexampleFilePath(
-                ckbPath, "mother", 2, 1
-        ).toFile());
+        FileOutputStream fos = new FileOutputStream(Paths.get(ckbPath, SimpleCompressedKb.getCounterexampleFileName(1)).toFile());
         fos.write(LittleEndianIntIO.leInt2ByteArray(5));
         fos.write(LittleEndianIntIO.leInt2ByteArray(5));
         fos.close();
 
-        fos = new FileOutputStream(SimpleCompressedKb.getCounterexampleFilePath(
-                ckbPath, "father", 2, 2
-        ).toFile());
+        fos = new FileOutputStream(Paths.get(ckbPath, SimpleCompressedKb.getCounterexampleFileName(2)).toFile());
         fos.write(LittleEndianIntIO.leInt2ByteArray(0x10));
         fos.write(LittleEndianIntIO.leInt2ByteArray(0x11));
         fos.write(LittleEndianIntIO.leInt2ByteArray(0xe));

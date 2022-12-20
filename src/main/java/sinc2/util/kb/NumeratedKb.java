@@ -4,8 +4,7 @@ import sinc2.common.Record;
 import sinc2.kb.KbException;
 import sinc2.util.MultiSet;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
@@ -15,7 +14,13 @@ import java.util.*;
  * efficiency. A KB is a set of 'NumeratedRelation'. A KB can be dumped into the local file system. A dumped KB is a
  * directory (named by the KB name) that contains multiple files:
  *   - The numeration mapping file: Please refer to class 'sinc2.util.kb.NumerationMap'
- *   - The relation files: Please refer to class 'sinc2.util.kb.KbRelation'
+ *   - The relation name file "Relations.tsv" : Relation information will be listed in order in this file (i.e., the
+ *   line numbers are the IDs of relations). The columns are:
+ *     1) relation name
+ *     2) arity
+ *     3) total records.
+ *   - The relation files: The names of the relation files are "<ID>.rel", as the relation names may contain illegal
+ *     characters for file names. Please refer to class 'sinc2.util.kb.KbRelation' for structure details.
  *   - Meta information files:
  *       - There may be multiple files with extension `.meta` to store arbitrary meta information of the KB.
  *       - The files are customized by other utilities and are not in a fixed format.
@@ -29,6 +34,9 @@ import java.util.*;
  */
 public class NumeratedKb {
 
+    /** The file name of the relation name file */
+    public static final String REL_INFO_FILE_NAME = "Relations.tsv";
+
     /** The name of the KB */
     protected final String name;
     /** The mapping from relation names to relation index in the relation list */
@@ -36,7 +44,7 @@ public class NumeratedKb {
     /** The list of relations */
     protected final List<KbRelation> relations = new ArrayList<>();
     /** The numeration map */
-    protected NumerationMap numMap;
+    protected final NumerationMap numMap;
     /** The multiset of all numerations mapped from entity names */
     protected final MultiSet<Integer> numSet;
 
@@ -49,6 +57,25 @@ public class NumeratedKb {
      */
     public static Path getKbPath(String kbName, String basePath) {
         return Paths.get(basePath, kbName);
+    }
+
+    /**
+     * Get the path of the relation name file.
+     *
+     * @param kbName The name of the KB
+     * @param basePath The path to the dir of KB files
+     */
+    public static Path getRelInfoFilePath(String kbName, String basePath) {
+        return Paths.get(basePath, kbName, REL_INFO_FILE_NAME);
+    }
+
+    /**
+     * Get the path to a relation data file.
+     *
+     * @param relId  The ID of the relation
+     */
+    public static String getRelDataFileName(int relId) {
+        return String.format("%d.rel", relId);
     }
 
     /**
@@ -77,7 +104,7 @@ public class NumeratedKb {
         String kb_dir_path = kb_dir.getAbsolutePath();
         this.numMap = new NumerationMap(kb_dir_path);
         this.numSet = new MultiSet<>();
-        loadAllRelationsHandler(kb_dir, false);
+        loadAllRelationsHandler(kb_dir_path, getRelInfoFilePath(name, basePath).toFile(), false);
     }
 
     /**
@@ -96,21 +123,22 @@ public class NumeratedKb {
         String kb_dir_path = kb_dir.getAbsolutePath();
         this.numMap = new NumerationMap(kb_dir_path);
         this.numSet = new MultiSet<>();
-        loadAllRelationsHandler(kb_dir, check);
+        loadAllRelationsHandler(kb_dir_path, getRelInfoFilePath(name, basePath).toFile(), check);
     }
 
     /**
      * Copy from another KB and assign a new name.
      *
-     * @param name The new name for this KB
+     * @param newName The new name for this KB
      */
-    public NumeratedKb(NumeratedKb another, String name) {
-        this.name = name;
-        for (Map.Entry<String, KbRelation> entry: another.relationMap.entrySet()) {
-            relationMap.put(entry.getKey(), new KbRelation(entry.getValue()));
+    public NumeratedKb(NumeratedKb another, String newName) {
+        this.name = newName;
+        for (int rel_idx = 0; rel_idx < another.relations.size(); rel_idx++) {
+            KbRelation new_relation = new KbRelation(another.relations.get(rel_idx));
+            relations.add(new_relation);
+            relationMap.put(new_relation.getName(), new_relation);
         }
         numMap = new NumerationMap(another.numMap);
-        relations.addAll(another.relations);
         numSet = new MultiSet<>(another.numSet);
     }
 
@@ -120,21 +148,31 @@ public class NumeratedKb {
      * @throws IOException When file I/O errors occur
      * @throws KbException When the record check fails
      */
-    protected void loadAllRelationsHandler(File kbDir, boolean check) throws IOException, KbException {
-        String kb_dir_path = kbDir.getAbsolutePath();
-        File[] files = kbDir.listFiles();
-        if (null != files) {
-            for (File f: files) {
-                KbRelation.RelationInfo rel_info = KbRelation.parseRelFilePath(f.getName());
-                if (null != rel_info) {
-                    loadRelation(kb_dir_path, rel_info.name, rel_info.arity, rel_info.totalRecords, check);
-                }
+    protected void loadAllRelationsHandler(String kbDirPath, File relInfoFile, boolean check) throws IOException, KbException {
+        /* Load relation information */
+        BufferedReader reader = new BufferedReader(new FileReader(relInfoFile));
+        String line;
+        while (null != (line = reader.readLine())) {
+            String[] components = line.split("\t"); // relation name, arity, total records
+            int rel_id = relations.size();
+            File rel_file = Paths.get(kbDirPath, getRelDataFileName(rel_id)).toFile();
+            KbRelation relation;
+            if (rel_file.exists()) {
+                /* Load from file */
+                loadRelation(kbDirPath, rel_file.getName(), components[0], Integer.parseInt(components[1]), check);
+            } else {
+                /* No relation data file means the relation is empty. Create an empty relation */
+                relation = new KbRelation(components[0], rel_id, Integer.parseInt(components[1]));
+                relations.add(relation);
+                relationMap.put(relation.getName(), relation);
             }
         }
+        reader.close();
     }
 
     /**
-     * Dump the KB to the local file system.
+     * Dump the KB to the local file system. This will call "tidyUp()" method to rearrange numeration mappings and relation
+     * IDs.
      *
      * @param basePath The path to the KB directory
      * @throws IOException Thrown when KB directory creation failed or errors occur in the dump of other files
@@ -152,12 +190,16 @@ public class NumeratedKb {
         /* Dump */
         String kb_dir_path = kb_dir_file.getAbsolutePath();
         numMap.dump(kb_dir_path);
-        for (KbRelation relation: relations) {
+        PrintWriter writer = new PrintWriter(getRelInfoFilePath(name, basePath).toFile());
+        for (int rel_id = 0; rel_id < relations.size(); rel_id++) {
+            KbRelation relation = relations.get(rel_id);
+            writer.printf("%s\t%d\t%d\n", relation.getName(), relation.getArity(), relation.totalRecords());
             if (0 < relation.totalRecords()) {
                 /* Dump only non-empty relations */
-                relation.dump(kb_dir_path);
+                relation.dump(kb_dir_path, getRelDataFileName(rel_id));
             }
         }
+        writer.close();
     }
 
     /**
@@ -189,18 +231,21 @@ public class NumeratedKb {
      * Load a relation into the KB from a '.rel' file.  If the name 'relName' has been used, raise a KbException.
      *
      * @param relBasePath The path where the file is stored.
-     * @param check Whether loaded records are checked in the mapping
+     * @param fileName    The name of the relation data file
+     * @param relName     The name of the relation
+     * @param arity       The arity of the relation
+     * @param check       Whether loaded records are checked in the mapping
      * @return The loaded relation object
      * @throws KbException The name 'relName' has already been used; numerations in loaded records are not mapped if check=true.
      * @throws IOException File I/O errors
      */
-    public KbRelation loadRelation(String relBasePath, String relName, int arity, int totalRecords, boolean check)
+    public KbRelation loadRelation(String relBasePath, String fileName, String relName, int arity, boolean check)
             throws KbException, IOException {
         KbRelation relation = relationMap.get(relName);
         if (null != relation) {
             throw new KbException("The relation has already been created in the KB: " + relName);
         }
-        relation = new KbRelation(relName, relations.size(), arity, totalRecords, relBasePath, check ? numMap:null);
+        relation = new KbRelation(relName, relations.size(), arity, fileName, relBasePath, check ? numMap:null);
         relationMap.put(relName, relation);
         relations.add(relation);
         for (Record record: relation) {
@@ -212,15 +257,18 @@ public class NumeratedKb {
     }
 
     /**
-     * Remove a relation from the KB by the numeration of the relation name.
+     * Remove a relation from the KB by the ID of the relation.
      *
      * @return The removed relation, or NULL if no such relation
      */
-    public KbRelation deleteRelation(int relNum) {
-        KbRelation relation = relations.get(relNum);
+    public KbRelation deleteRelation(int relId) {
+        if (relId >= relations.size() || 0 > relId) {
+            return null;
+        }
+        KbRelation relation = relations.get(relId);
         if (null != relation) {
             relationMap.remove(relation.getName());
-            relations.set(relNum, null);
+            relations.set(relId, null);
             for (Record record: relation) {
                 for (int arg: record.args) {
                     if (0 == numSet.remove(arg)) {
@@ -240,7 +288,7 @@ public class NumeratedKb {
     public KbRelation deleteRelation(String relName) {
         KbRelation relation = relationMap.remove(relName);
         if (null != relation) {
-            relations.set(relation.getNumeration(), null);
+            relations.set(relation.getId(), null);
             for (Record record: relation) {
                 for (int arg: record.args) {
                     if (0 == numSet.remove(arg)) {
@@ -764,36 +812,6 @@ public class NumeratedKb {
     }
 
     /**
-     * Add a name string into the KB and assign the name a unique number.
-     *
-     * @param name The name string
-     * @return Mapped number
-     */
-    public int mapName(String name) {
-        return numMap.mapName(name);
-    }
-
-    /**
-     * Remove the mapping of a name string in the KB.
-     *
-     * @param name The name string
-     * @return The number for the name. 0 if the name is not mapped in the KB.
-     */
-    public int unmapName(String name) {
-        return numMap.unmapName(name);
-    }
-
-    /**
-     * Remove the mapping of the number 'num' in the KB.
-     *
-     * @param num The number
-     * @return The mapped name of the number, NULL if the number is not mapped in the KB.
-     */
-    public String unmapNumeration(int num) {
-        return numMap.unmapNumeration(num);
-    }
-
-    /**
      * Get the mapped name for number 'num'.
      *
      * @return The mapped name of the number, NULL if the number is not mapped in the KB.
@@ -816,7 +834,7 @@ public class NumeratedKb {
     }
 
     public Collection<KbRelation> getRelations() {
-        return relations;
+        return relationMap.values();
     }
 
     public NumerationMap getNumerationMap() {
@@ -841,17 +859,34 @@ public class NumeratedKb {
 
     /**
      * Tidy up the mapping and records because there may be many mappings that are not used due to removal of relations
-     * and records.
+     * and records. Reuse the IDs of deleted, not empty, relations.
      */
     public void tidyUp() {
-        Map<Integer, Integer> remap_map = numMap.replaceEmpty();
-        if (remap_map.isEmpty()) {
-            return;
+        /* Reuse IDs of deleted relations */
+        int last_rel_idx = relations.size() - 1;
+        for (int rel_idx = 0; rel_idx <= last_rel_idx; rel_idx++) {
+            KbRelation relation = relations.get(rel_idx);
+            if (null == relation) {
+                for (; last_rel_idx >= rel_idx; last_rel_idx--) {
+                    KbRelation replacement = relations.get(last_rel_idx);
+                    if (null != replacement) {
+                        replacement.id = rel_idx;
+                        relations.set(rel_idx, replacement);
+                        relations.set(last_rel_idx, null);
+                    }
+                }
+            }
         }
-        for (KbRelation relation: relations) {
-            for (Record record: relation) {
-                for (int i = 0; i < relation.getArity(); i++) {
-                    record.args[i] = remap_map.getOrDefault(record.args[i], record.args[i]);
+        relations.subList(last_rel_idx + 1, relations.size()).clear();
+
+        /* Remove invalid mappings */
+        Map<Integer, Integer> remap_map = numMap.replaceEmpty();
+        if (!remap_map.isEmpty()) {
+            for (KbRelation relation: relations) {
+                for (Record record: relation) {
+                    for (int i = 0; i < relation.getArity(); i++) {
+                        record.args[i] = remap_map.getOrDefault(record.args[i], record.args[i]);
+                    }
                 }
             }
         }

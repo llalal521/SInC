@@ -7,6 +7,7 @@ import sinc2.common.Record;
 import sinc2.kb.KbException;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,16 +35,22 @@ class NumeratedKbTest {
         assertEquals(0, kb.totalRecords());
 
         kb.addRecord("family", new String[]{"alice", "bob", "catherine"});
-        assertEquals(0, kb.getRelation("family").getNumeration());
+        assertEquals(0, kb.getRelation("family").getId());
         kb.addRecord(0, new String[]{"diana", "erick", "frederick"});
-        assertEquals(7, kb.mapName("gabby"));
-        assertEquals(8, kb.mapName("harry"));
-        assertEquals(9, kb.mapName("isaac"));
-        assertEquals(10, kb.mapName("jena"));
-        assertEquals(11, kb.mapName("kyle"));
-        assertEquals(12, kb.mapName("lily"));
+        kb.addRecord(0, new String[]{"gabby", "gabby", "gabby"});
+        kb.addRecord(0, new String[]{"harry", "harry", "harry"});
+        kb.addRecord(0, new String[]{"isaac", "isaac", "isaac"});
+        kb.addRecord(0, new String[]{"jena", "jena", "jena"});
+        kb.addRecord(0, new String[]{"kyle", "kyle", "kyle"});
+        kb.addRecord(0, new String[]{"lily", "lily", "lily"});
         kb.addRecord("family", new Record(new int[]{7, 8, 9}));
         kb.addRecord(0, new Record(new int[]{10, 11, 12}));
+        kb.removeRecord(0, new String[]{"gabby", "gabby", "gabby"});
+        kb.removeRecord(0, new String[]{"harry", "harry", "harry"});
+        kb.removeRecord(0, new String[]{"isaac", "isaac", "isaac"});
+        kb.removeRecord(0, new String[]{"jena", "jena", "jena"});
+        kb.removeRecord(0, new String[]{"kyle", "kyle", "kyle"});
+        kb.removeRecord(0, new String[]{"lily", "lily", "lily"});
 
         assertEquals(12, kb.totalMappings());
         assertEquals(1, kb.totalRelations());
@@ -75,7 +82,7 @@ class NumeratedKbTest {
         assertEquals(3, kb.totalRelations());
         assertEquals(12, kb.totalRecords());
 
-        final int family_num = kb.getRelation("family").getNumeration();
+        final int family_num = kb.getRelation("family").getId();
         assertTrue(kb.hasRecord("family", new String[]{"alice", "bob", "catherine"}));
         assertTrue(kb.hasRecord("family", new String[]{"diana", "erick", "frederick"}));
         assertTrue(kb.hasRecord("family", new String[]{"gabby", "harry", "isaac"}));
@@ -93,7 +100,7 @@ class NumeratedKbTest {
         assertTrue(kb.hasRecord(family_num, new Record(new int[]{10, 11, 12})));
         assertTrue(kb.hasRecord(family_num, new Record(new int[]{13, 14, 15})));
 
-        final int mother_num = kb.getRelation("mother").getNumeration();
+        final int mother_num = kb.getRelation("mother").getId();
         assertTrue(kb.hasRecord("mother", new String[]{"alice", "catherine"}));
         assertTrue(kb.hasRecord("mother", new String[]{"diana", "frederick"}));
         assertTrue(kb.hasRecord("mother", new String[]{"gabby", "isaac"}));
@@ -111,7 +118,7 @@ class NumeratedKbTest {
         assertTrue(kb.hasRecord(mother_num, new Record(new int[]{10, 12})));
         assertTrue(kb.hasRecord(mother_num, new Record(new int[]{13, 15})));
 
-        final int father_num = kb.getRelation("father").getNumeration();
+        final int father_num = kb.getRelation("father").getId();
         assertTrue(kb.hasRecord("father", new String[]{"bob", "catherine"}));
         assertTrue(kb.hasRecord("father", new String[]{"erick", "frederick"}));
         assertTrue(kb.hasRecord("father", new String[]{"harry", "isaac"}));
@@ -142,7 +149,7 @@ class NumeratedKbTest {
         assertEquals(3, kb2.totalRelations());
         assertEquals(12, kb2.totalRecords());
 
-        final int family_num = kb2.getRelation("family").getNumeration();
+        final int family_num = kb2.getRelation("family").getId();
         assertTrue(kb2.hasRecord("family", new String[]{"alice", "bob", "catherine"}));
         assertTrue(kb2.hasRecord("family", new String[]{"diana", "erick", "frederick"}));
         assertTrue(kb2.hasRecord("family", new String[]{"gabby", "harry", "isaac"}));
@@ -160,7 +167,7 @@ class NumeratedKbTest {
         assertTrue(kb2.hasRecord(family_num, new Record(new int[]{10, 11, 12})));
         assertTrue(kb2.hasRecord(family_num, new Record(new int[]{13, 14, 3})));
 
-        final int mother_num = kb2.getRelation("mother").getNumeration();
+        final int mother_num = kb2.getRelation("mother").getId();
         assertTrue(kb2.hasRecord("mother", new String[]{"alice", "catherine"}));
         assertTrue(kb2.hasRecord("mother", new String[]{"diana", "frederick"}));
         assertTrue(kb2.hasRecord("mother", new String[]{"gabby", "isaac"}));
@@ -178,7 +185,7 @@ class NumeratedKbTest {
         assertTrue(kb2.hasRecord(mother_num, new Record(new int[]{10, 12})));
         assertTrue(kb2.hasRecord(mother_num, new Record(new int[]{13, 3})));
 
-        final int father_num = kb2.getRelation("father").getNumeration();
+        final int father_num = kb2.getRelation("father").getId();
         assertTrue(kb2.hasRecord("father", new String[]{"bob", "catherine"}));
         assertTrue(kb2.hasRecord("father", new String[]{"erick", "frederick"}));
         assertTrue(kb2.hasRecord("father", new String[]{"harry", "isaac"}));
@@ -206,7 +213,7 @@ class NumeratedKbTest {
         assertEquals(12, kb.totalRecords());
         assertEquals("rel", relation.getName());
         assertEquals(2, relation.getArity());
-        assertEquals(3, relation.getNumeration());
+        assertEquals(3, relation.getId());
         assertEquals(0, relation.totalRecords());
         assertSame(relation, kb.getRelation("rel"));
         assertSame(relation, kb.getRelation(3));
@@ -224,20 +231,20 @@ class NumeratedKbTest {
     @Test
     void testLoadRelation() throws KbException, IOException {
         NumeratedKb kb = new NumeratedKb(testKbManager.getKbName(), TestKbManager.MEM_DIR);
-        KbRelation relation = new KbRelation("reflex", 0, 2);
+        KbRelation relation = new KbRelation("reflex", 3, 2);
         relation.addRecord(new Record(new int[]{4, 4}));
         relation.addRecord(new Record(new int[]{5, 5}));
         relation.addRecord(new Record(new int[]{6, 6}));
-        relation.dump(TestKbManager.MEM_DIR);
-        testKbManager.appendTmpFile(KbRelation.getRelFilePath(TestKbManager.MEM_DIR, "reflex", 2, 3).toAbsolutePath().toString());
+        relation.dump(TestKbManager.MEM_DIR, "reflex.rel");
+        testKbManager.appendTmpFile(Paths.get(TestKbManager.MEM_DIR, "reflex.rel").toAbsolutePath().toString());
 
-        relation = kb.loadRelation(TestKbManager.MEM_DIR, "reflex", 2, 3, true);
+        relation = kb.loadRelation(TestKbManager.MEM_DIR, "reflex.rel", "reflex", 2, true);
         assertEquals(14, kb.totalMappings());
         assertEquals(4, kb.totalRelations());
         assertEquals(15, kb.totalRecords());
         assertEquals("reflex", relation.getName());
         assertEquals(2, relation.getArity());
-        assertEquals(3, relation.getNumeration());
+        assertEquals(3, relation.getId());
         assertEquals(3, relation.totalRecords());
         assertNotNull(kb.getRelation("reflex"));
         assertNotNull(kb.getRelation(3));
@@ -245,26 +252,28 @@ class NumeratedKbTest {
         assertTrue(kb.hasRecord("reflex", new Record(new int[]{5, 5})));
         assertTrue(kb.hasRecord("reflex", new Record(new int[]{6, 6})));
 
-        relation = new KbRelation("reflex2", 0, 2);
+        relation = new KbRelation("reflex2", 4, 2);
         relation.addRecord(new Record(new int[]{7, 7}));
         relation.addRecord(new Record(new int[]{99, 99}));
         relation.addRecord(new Record(new int[]{8, 8}));
-        relation.dump(TestKbManager.MEM_DIR);
-        testKbManager.appendTmpFile(KbRelation.getRelFilePath(TestKbManager.MEM_DIR, "reflex2", 2, 3).toAbsolutePath().toString());
-        assertThrows(KbException.class, () -> kb.loadRelation(TestKbManager.MEM_DIR, "reflex2", 2, 3, true));
+        relation.dump(TestKbManager.MEM_DIR, "reflex2.rel");
+        testKbManager.appendTmpFile(Paths.get(TestKbManager.MEM_DIR, "reflex2.rel").toAbsolutePath().toString());
+        assertThrows(KbException.class, () -> kb.loadRelation(TestKbManager.MEM_DIR, "reflex2.rel", "reflex2", 2, true));
     }
 
     @Test
     void testDeleteRelation() throws KbException, IOException {
         NumeratedKb kb = new NumeratedKb(testKbManager.getKbName(), TestKbManager.MEM_DIR, true);
-        final int father_num = kb.deleteRelation("father").getNumeration();
+        final int father_num = kb.deleteRelation("father").getId();
+        assertEquals(2, father_num);
 
         assertEquals(testKbManager.getKbName(), kb.getName());
         assertEquals(12, kb.totalMappings());
         assertEquals(2, kb.totalRelations());
         assertEquals(8, kb.totalRecords());
 
-        final int family_num = kb.getRelation("family").getNumeration();
+        final int family_num = kb.getRelation("family").getId();
+        assertEquals(0, family_num);
         assertTrue(kb.hasRecord("family", new String[]{"alice", "bob", "catherine"}));
         assertTrue(kb.hasRecord("family", new String[]{"diana", "erick", "frederick"}));
         assertTrue(kb.hasRecord("family", new String[]{"gabby", "harry", "isaac"}));
@@ -282,7 +291,8 @@ class NumeratedKbTest {
         assertTrue(kb.hasRecord(family_num, new Record(new int[]{10, 11, 12})));
         assertTrue(kb.hasRecord(family_num, new Record(new int[]{13, 14, 15})));
 
-        final int mother_num = kb.getRelation("mother").getNumeration();
+        final int mother_num = kb.getRelation("mother").getId();
+        assertEquals(1, mother_num);
         assertTrue(kb.hasRecord("mother", new String[]{"alice", "catherine"}));
         assertTrue(kb.hasRecord("mother", new String[]{"diana", "frederick"}));
         assertTrue(kb.hasRecord("mother", new String[]{"gabby", "isaac"}));
@@ -323,7 +333,7 @@ class NumeratedKbTest {
     @Test
     void testAddRecord() throws KbException, IOException {
         NumeratedKb kb = new NumeratedKb(testKbManager.getKbName(), TestKbManager.MEM_DIR, true);
-        final int family_num = kb.getRelation("family").getNumeration();
+        final int family_num = kb.getRelation("family").getId();
         kb.addRecord("family", new String[]{"o", "p", "q"});
         kb.addRecord(family_num, new String[]{"o", "o", "o"});
         assertEquals(2, kb.name2Num("p"));
@@ -354,19 +364,19 @@ class NumeratedKbTest {
     @Test
     void testAddRecords() throws KbException, IOException {
         NumeratedKb kb = new NumeratedKb(testKbManager.getKbName(), TestKbManager.MEM_DIR, true);
-        final int family_num = kb.getRelation("family").getNumeration();
+        final int family_num = kb.getRelation("family").getId();
         kb.addRecords("family", new String[][]{
                 new String[]{"o", "o", "o"}, new String[]{"oo", "oo", "oo"}
         });
         kb.addRecords(family_num, new String[][]{
                 new String[]{"p", "p", "p"}, new String[]{"pp", "pp", "pp"}
         });
-        assertEquals(19, kb.mapName("q"));
-        assertEquals(20, kb.mapName("qq"));
+        kb.addRecords(family_num, new String[][]{new String[]{"q", "q", "qq"}});
         kb.addRecords("family", new int[][]{new int[]{19, 19, 19}, new int[]{20, 20, 20}});
-        assertEquals(21, kb.mapName("r"));
-        assertEquals(22, kb.mapName("rr"));
+        kb.addRecords(family_num, new String[][]{new String[]{"r", "r", "rr"}});
         kb.addRecords(family_num, new int[][]{new int[]{21, 21, 21}, new int[]{22, 22, 22}});
+        kb.removeRecord(family_num, new String[]{"q", "q", "qq"});
+        kb.removeRecord(family_num, new String[]{"r", "r", "rr"});
 
         assertEquals(22, kb.totalMappings());
         assertEquals(3, kb.totalRelations());
@@ -402,8 +412,8 @@ class NumeratedKbTest {
     @Test
     void testRemoveRecord() throws KbException, IOException {
         NumeratedKb kb = new NumeratedKb(testKbManager.getKbName(), TestKbManager.MEM_DIR, true);
-        final int mother_num = kb.getRelation("mother").getNumeration();
-        final int father_num = kb.getRelation("father").getNumeration();
+        final int mother_num = kb.getRelation("mother").getId();
+        final int father_num = kb.getRelation("father").getId();
         kb.removeRecord("mother", new String[]{"alice", "catherine"});
         kb.removeRecord(mother_num, new String[]{"diana", "frederick"});
         kb.removeRecord("father", new int[]{0xb, 0xc});
@@ -432,4 +442,62 @@ class NumeratedKbTest {
         assertEquals(8, kb.totalRecords());
     }
 
+    @Test
+    void testTidyUp1() throws KbException, IOException {
+        testWrite();
+    }
+
+    @Test
+    void testTidyUp2() throws KbException, IOException {
+        NumeratedKb kb = new NumeratedKb(testKbManager.getKbName(), TestKbManager.MEM_DIR, true);
+        assertEquals(0, kb.getRelation("family").getId());
+        assertEquals(1, kb.getRelation("mother").getId());
+        assertEquals(2, kb.deleteRelation("father").getId());
+        kb.tidyUp();
+
+        assertEquals(testKbManager.getKbName(), kb.getName());
+        assertEquals(12, kb.totalMappings());
+        assertEquals(2, kb.totalRelations());
+        assertEquals(8, kb.totalRecords());
+
+        assertEquals(0, kb.getRelation("family").getId());
+        assertEquals(1, kb.getRelation("mother").getId());
+        assertNull(kb.getRelation("father"));
+    }
+
+    @Test
+    void testTidyUp3() throws KbException, IOException {
+        NumeratedKb kb = new NumeratedKb(testKbManager.getKbName(), TestKbManager.MEM_DIR, true);
+        assertEquals(0, kb.getRelation("family").getId());
+        assertEquals(1, kb.deleteRelation("mother").getId());
+        assertEquals(2, kb.getRelation("father").getId());
+        kb.tidyUp();
+
+        assertEquals(testKbManager.getKbName(), kb.getName());
+        assertEquals(14, kb.totalMappings());
+        assertEquals(2, kb.totalRelations());
+        assertEquals(8, kb.totalRecords());
+
+        assertEquals(0, kb.getRelation("family").getId());
+        assertNull(kb.getRelation("mother"));
+        assertEquals(1, kb.getRelation("father").getId());
+    }
+
+    @Test
+    void testTidyUp4() throws KbException, IOException {
+        NumeratedKb kb = new NumeratedKb(testKbManager.getKbName(), TestKbManager.MEM_DIR, true);
+        assertEquals(0, kb.deleteRelation("family").getId());
+        assertEquals(1, kb.deleteRelation("mother").getId());
+        assertEquals(2, kb.getRelation("father").getId());
+        kb.tidyUp();
+
+        assertEquals(testKbManager.getKbName(), kb.getName());
+        assertEquals(8, kb.totalMappings());
+        assertEquals(1, kb.totalRelations());
+        assertEquals(4, kb.totalRecords());
+
+        assertNull(kb.getRelation("family"));
+        assertNull(kb.getRelation("mother"));
+        assertEquals(0, kb.getRelation("father").getId());
+    }
 }

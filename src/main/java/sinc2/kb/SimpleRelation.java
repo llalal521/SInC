@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -35,16 +36,14 @@ public class SimpleRelation extends IntTable {
     /**
      * This method loads a relation file as a 2D array of integers. Please refer to "KbRelation" for the file format.
      *
-     * @param name         The name of the relation
+     * @param file         The file containing the relation data
      * @param arity        The arity of the relation
      * @param totalRecords The number of records in the relation
-     * @param kbPtah       The path to the KB that the relation belongs to
      * @throws IOException
      * @see KbRelation
      */
-    static protected int[][] loadFile(String name, int arity, int totalRecords, String kbPtah) throws IOException {
-        File rel_file = KbRelation.getRelFilePath(kbPtah, name, arity, totalRecords).toFile();
-        FileInputStream fis = new FileInputStream(rel_file);
+    static protected int[][] loadFile(File file, int arity, int totalRecords) throws IOException {
+        FileInputStream fis = new FileInputStream(file);
         byte[] buffer = new byte[Integer.BYTES];
         int[][] records = new int[totalRecords][];
         for (int i = 0; i < totalRecords; i++) {
@@ -72,8 +71,8 @@ public class SimpleRelation extends IntTable {
      * Create a relation from a relation file
      * @throws IOException
      */
-    public SimpleRelation(String name, int id, int arity, int totalRecords, String kbPtah) throws IOException {
-        super(loadFile(name, arity, totalRecords, kbPtah));
+    public SimpleRelation(String name, int id, int arity, int totalRecords, String fileName, String kbPtah) throws IOException {
+        super(loadFile(Paths.get(kbPtah, fileName).toFile(), arity, totalRecords));
         this.name = name;
         this.id = id;
         entailmentFlags = new int[totalRows / BITS_PER_INT + ((0 == totalRows % BITS_PER_INT) ? 0 : 1)];
@@ -211,11 +210,9 @@ public class SimpleRelation extends IntTable {
      * @throws KbException File writing failure
      * @see KbRelation
      */
-    public void dump(String basePath) throws KbException {
+    public void dump(String basePath, String fileName) throws KbException {
         try {
-            FileOutputStream fos = new FileOutputStream(KbRelation.getRelFilePath(
-                    basePath, name, totalCols, totalRows
-            ).toFile());
+            FileOutputStream fos = new FileOutputStream(Paths.get(basePath, fileName).toFile());
             for (int [] record: sortedRowsByCols[0]) {
                 for (int i : record) {
                     fos.write(LittleEndianIntIO.leInt2ByteArray(i));
@@ -235,12 +232,9 @@ public class SimpleRelation extends IntTable {
      * @throws KbException File writing failure
      * @see KbRelation
      */
-    public void dumpNecessaryRecords(String basePath, List<int[]> fvsRecords) throws KbException {
+    public void dumpNecessaryRecords(String basePath, String fileName, List<int[]> fvsRecords) throws KbException {
         try {
-            int dumped_records = totalRows - totalEntailedRecords() + fvsRecords.size();
-            FileOutputStream fos = new FileOutputStream(KbRelation.getRelFilePath(
-                    basePath, name, totalCols, dumped_records
-            ).toFile());
+            FileOutputStream fos = new FileOutputStream(Paths.get(basePath, fileName).toFile());
             int[][] records = sortedRowsByCols[0];
             for (int idx = 0; idx < totalRows; idx++) {
                 if (0 == entailment(idx)) {
@@ -257,25 +251,6 @@ public class SimpleRelation extends IntTable {
             fos.close();
         } catch (IOException e) {
             throw new KbException(e);
-        }
-    }
-
-    public void dumpCounterexamples(String basePath, Set<Record> records) throws KbException {
-        if (0 < records.size()) {
-            /* Dump only non-empty relations */
-            try {
-                FileOutputStream fos = new FileOutputStream(SimpleCompressedKb.getCounterexampleFilePath(
-                        basePath, name, totalCols, records.size()
-                ).toFile());
-                for (Record counterexample: records) {
-                    for (int arg: counterexample.args) {
-                        fos.write(LittleEndianIntIO.leInt2ByteArray(arg));
-                    }
-                }
-                fos.close();
-            } catch (IOException e) {
-                throw new KbException(e);
-            }
         }
     }
 

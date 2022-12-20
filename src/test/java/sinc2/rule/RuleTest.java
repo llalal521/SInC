@@ -409,18 +409,20 @@ class RuleTest {
     void checkSpecOprEquivalence(List<ParsedPred> structure) throws RuleParseException, KbException {
         /* Map constant and predicate symbols */
         NumeratedKb kb = new NumeratedKb("test");
+        kb.createRelation("_names", 1); // Use this relation to map name strings
         List<Predicate> numed_structure = new ArrayList<>();
         for (ParsedPred predicate: structure) {
             if (null == kb.getRelation(predicate.functor)) {
                 kb.createRelation(predicate.functor, predicate.args.length);
             }
-            Predicate num_predicate = new Predicate(kb.name2Num(predicate.functor), predicate.args.length);
+            Predicate num_predicate = new Predicate(kb.getRelation(predicate.functor).getId(), predicate.args.length);
             for (int arg_idx = 0; arg_idx < predicate.args.length; arg_idx++) {
                 ParsedArg argument = predicate.args[arg_idx];
                 if (null == argument) {
                     num_predicate.args[arg_idx] = Argument.EMPTY_VALUE;
                 } else if (null != argument.name) {
-                    num_predicate.args[arg_idx] = Argument.constant(kb.mapName(argument.name));
+                    kb.addRecord("_names", new String[]{argument.name});
+                    num_predicate.args[arg_idx] = Argument.constant(kb.name2Num(argument.name));
                 } else {
                     num_predicate.args[arg_idx] = Argument.variable(argument.id);
                 }
@@ -432,7 +434,7 @@ class RuleTest {
         List<ParsedSpecOpr> operations = Rule.parseConstruction(structure);
         KbRelation head_relation = kb.getRelation(structure.get(0).functor);
         Rule.MIN_FACT_COVERAGE = -1;
-        BareRule rule = new BareRule(head_relation.getNumeration(), head_relation.getArity(), new HashSet<>(), new HashMap<>());
+        BareRule rule = new BareRule(head_relation.getId(), head_relation.getArity(), new HashSet<>(), new HashMap<>());
         for (ParsedSpecOpr opr: operations) {
             switch (opr.getSpecCase()) {
                 case CASE1:
@@ -441,7 +443,7 @@ class RuleTest {
                     break;
                 case CASE2:
                     ParsedSpecOprCase2 opr_case2 = (ParsedSpecOprCase2) opr;
-                    rule.cvt1Uv2ExtLv(kb.name2Num(opr_case2.functor), opr_case2.arity, opr_case2.argIdx, opr_case2.varId);
+                    rule.cvt1Uv2ExtLv(kb.getRelation(opr_case2.functor).getId(), opr_case2.arity, opr_case2.argIdx, opr_case2.varId);
                     break;
                 case CASE3:
                     ParsedSpecOprCase3 opr_case3 = (ParsedSpecOprCase3) opr;
@@ -449,7 +451,7 @@ class RuleTest {
                     break;
                 case CASE4:
                     ParsedSpecOprCase4 opr_case4 = (ParsedSpecOprCase4) opr;
-                    rule.cvt2Uvs2NewLv(kb.name2Num(opr_case4.functor), opr_case4.arity, opr_case4.argIdx1, opr_case4.predIdx2, opr_case4.argIdx2);
+                    rule.cvt2Uvs2NewLv(kb.getRelation(opr_case4.functor).getId(), opr_case4.arity, opr_case4.argIdx1, opr_case4.predIdx2, opr_case4.argIdx2);
                     break;
                 case CASE5:
                     ParsedSpecOprCase5 opr_case5 = (ParsedSpecOprCase5) opr;

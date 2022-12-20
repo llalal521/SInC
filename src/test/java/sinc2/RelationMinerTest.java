@@ -10,7 +10,7 @@ import sinc2.kb.SimpleRelation;
 import sinc2.rule.*;
 import sinc2.util.LittleEndianIntIO;
 import sinc2.util.graph.GraphNode;
-import sinc2.util.kb.KbRelation;
+import sinc2.util.kb.NumeratedKb;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -64,7 +64,17 @@ class RelationMinerTest {
         File kb_dir = Paths.get(TEST_DIR, KB_NAME).toFile();
         assertTrue(kb_dir.exists() || kb_dir.mkdirs());
 
-        FileOutputStream fos = new FileOutputStream(KbRelation.getRelFilePath(kb_dir.getAbsolutePath(), "family", 3, 2).toFile());
+        /* Create relation name mapping */
+        PrintWriter writer = new PrintWriter(NumeratedKb.getRelInfoFilePath(KB_NAME, TEST_DIR).toFile());
+        writer.println("family\t3\t2");
+        writer.println("father\t2\t2");
+        writer.println("mother\t2\t2");
+        writer.println("isMale\t1\t1");
+        writer.close();
+
+        /* Create relation data files */
+        String kb_dir_path = kb_dir.getAbsolutePath();
+        FileOutputStream fos = new FileOutputStream(Paths.get(kb_dir_path, "0.rel").toFile());
         fos.write(LittleEndianIntIO.leInt2ByteArray(1));
         fos.write(LittleEndianIntIO.leInt2ByteArray(2));
         fos.write(LittleEndianIntIO.leInt2ByteArray(3));
@@ -72,19 +82,19 @@ class RelationMinerTest {
         fos.write(LittleEndianIntIO.leInt2ByteArray(2));
         fos.write(LittleEndianIntIO.leInt2ByteArray(4));
         fos.close();
-        fos = new FileOutputStream(KbRelation.getRelFilePath(kb_dir.getAbsolutePath(), "father", 2, 2).toFile());
+        fos = new FileOutputStream(Paths.get(kb_dir_path, "1.rel").toFile());
         fos.write(LittleEndianIntIO.leInt2ByteArray(2));
         fos.write(LittleEndianIntIO.leInt2ByteArray(3));
         fos.write(LittleEndianIntIO.leInt2ByteArray(4));
         fos.write(LittleEndianIntIO.leInt2ByteArray(6));
         fos.close();
-        fos = new FileOutputStream(KbRelation.getRelFilePath(kb_dir.getAbsolutePath(), "mother", 2, 1).toFile());
+        fos = new FileOutputStream(Paths.get(kb_dir_path, "2.rel").toFile());
         fos.write(LittleEndianIntIO.leInt2ByteArray(1));
         fos.write(LittleEndianIntIO.leInt2ByteArray(3));
         fos.write(LittleEndianIntIO.leInt2ByteArray(2));
         fos.write(LittleEndianIntIO.leInt2ByteArray(4));
         fos.close();
-        fos = new FileOutputStream(KbRelation.getRelFilePath(kb_dir.getAbsolutePath(), "isMale", 1, 1).toFile());
+        fos = new FileOutputStream(Paths.get(kb_dir_path, "3.rel").toFile());
         fos.write(LittleEndianIntIO.leInt2ByteArray(2));
         fos.close();
 
@@ -116,15 +126,15 @@ class RelationMinerTest {
                 "family(X0,X0,?):-",
                 "family(X0,?,X0):-",//
                 "family(?,X0,X0):-",
-//                "family(X0,?,?):-family(X0,?,?)",
+                "family(X0,?,?):-family(X0,?,?)",
                 "family(X0,?,?):-family(?,X0,?)",
                 "family(X0,?,?):-family(?,?,X0)",
                 "family(?,X0,?):-family(X0,?,?)",//
-//                "family(?,X0,?):-family(?,X0,?)",
+                "family(?,X0,?):-family(?,X0,?)",
                 "family(?,X0,?):-family(?,?,X0)",
                 "family(?,?,X0):-family(X0,?,?)",
                 "family(?,?,X0):-family(?,X0,?)",
-//                "family(?,?,X0):-family(?,?,X0)",
+                "family(?,?,X0):-family(?,?,X0)",
                 "family(X0,?,?):-mother(X0,?)",
                 "family(X0,?,?):-mother(?,X0)",
                 "family(?,X0,?):-mother(X0,?)",
@@ -181,7 +191,7 @@ class RelationMinerTest {
                 "family(?,X0,X0):-father(X0,?)",
                 "family(?,X0,?):-father(X0,X0)",
                 "family(?,X0,?):-father(X0,?),family(X0,?,?)",
-//                "family(?,X0,?):-father(X0,?),family(?,X0,?)",
+                "family(?,X0,?):-father(X0,?),family(?,X0,?)",
                 "family(?,X0,?):-father(X0,?),family(?,?,X0)",
                 "family(?,X0,?):-father(X0,?),mother(X0,?)",
                 "family(?,X0,?):-father(X0,?),mother(?,X0)",
@@ -191,12 +201,12 @@ class RelationMinerTest {
                 "family(X1,X0,X1):-father(X0,?)",
                 "family(X1,X0,?):-father(X0,X1)",
                 "family(?,X0,X1):-father(X0,X1)",
-//                "family(X1,X0,?):-father(X0,?),family(X1,?,?)",
+                "family(X1,X0,?):-father(X0,?),family(X1,?,?)",
                 "family(X1,X0,?):-father(X0,?),family(?,X1,?)",
                 "family(X1,X0,?):-father(X0,?),family(?,?,X1)",
                 "family(?,X0,X1):-father(X0,?),family(X1,?,?)",
                 "family(?,X0,X1):-father(X0,?),family(?,X1,?)",
-//                "family(?,X0,X1):-father(X0,?),family(?,?,X1)",
+                "family(?,X0,X1):-father(X0,?),family(?,?,X1)",
                 "family(?,X0,?):-father(X0,X1),family(X1,?,?)",
                 "family(?,X0,?):-father(X0,X1),family(?,X1,?)",
                 "family(?,X0,?):-father(X0,X1),family(?,?,X1)",

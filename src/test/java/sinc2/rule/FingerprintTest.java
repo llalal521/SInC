@@ -548,41 +548,41 @@ class FingerprintTest {
                 "family(X1,X0,X2):-father(X0,?),mother(X1,?),isMale(X2)",
                 "family(X1,X0,X2):-father(X0,X2),mother(X1,?)"
         };
-        NumeratedKb kb = new NumeratedKb("test");
-        kb.mapName("family");
-        kb.mapName("father");
-        kb.mapName("mother");
-        kb.mapName("isMale");
+        NumerationMap map = new NumerationMap();
+        map.mapName("family");
+        map.mapName("father");
+        map.mapName("mother");
+        map.mapName("isMale");
 
-        Rule rule0 = new BareRule(kb.name2Num("family"), 3, new HashSet<>(), new HashMap<>());
-        rule0.cvt2Uvs2NewLv(kb.name2Num("father"), 2, 0, 0, 1);
-        rule0.cvt2Uvs2NewLv(kb.name2Num("isMale"), 1, 0, 0, 2);
+        Rule rule0 = new BareRule(map.name2Num("family"), 3, new HashSet<>(), new HashMap<>());
+        rule0.cvt2Uvs2NewLv(map.name2Num("father"), 2, 0, 0, 1);
+        rule0.cvt2Uvs2NewLv(map.name2Num("isMale"), 1, 0, 0, 2);
         rule0.cvt1Uv2ExtLv(1, 1, 1);
-        assertEquals(rule_strs[0], rule0.toDumpString(kb.getNumerationMap()));
+        assertEquals(rule_strs[0], rule0.toDumpString(map));
 
-        Rule rule1 = new BareRule(kb.name2Num("family"), 3, new HashSet<>(), new HashMap<>());
-        rule1.cvt2Uvs2NewLv(kb.name2Num("father"), 2, 1, 0, 2);
-        rule1.cvt2Uvs2NewLv(kb.name2Num("mother"), 2, 0, 0, 0);
-        rule1.cvt1Uv2ExtLv(kb.name2Num("isMale"), 1, 0, 0);
-        assertEquals(rule_strs[1], rule1.toDumpString(kb.getNumerationMap()));
+        Rule rule1 = new BareRule(map.name2Num("family"), 3, new HashSet<>(), new HashMap<>());
+        rule1.cvt2Uvs2NewLv(map.name2Num("father"), 2, 1, 0, 2);
+        rule1.cvt2Uvs2NewLv(map.name2Num("mother"), 2, 0, 0, 0);
+        rule1.cvt1Uv2ExtLv(map.name2Num("isMale"), 1, 0, 0);
+        assertEquals(rule_strs[1], rule1.toDumpString(map));
 
-        Rule rule2 = new BareRule(kb.name2Num("family"), 3, new HashSet<>(), new HashMap<>());
-        rule2.cvt2Uvs2NewLv(kb.name2Num("father"), 2, 0, 0, 1);
-        rule2.cvt2Uvs2NewLv(kb.name2Num("mother"), 2, 0, 0, 0);
-        rule2.cvt2Uvs2NewLv(kb.name2Num("isMale"), 1, 0, 1, 1);
-        assertEquals(rule_strs[2], rule2.toDumpString(kb.getNumerationMap()));
+        Rule rule2 = new BareRule(map.name2Num("family"), 3, new HashSet<>(), new HashMap<>());
+        rule2.cvt2Uvs2NewLv(map.name2Num("father"), 2, 0, 0, 1);
+        rule2.cvt2Uvs2NewLv(map.name2Num("mother"), 2, 0, 0, 0);
+        rule2.cvt2Uvs2NewLv(map.name2Num("isMale"), 1, 0, 1, 1);
+        assertEquals(rule_strs[2], rule2.toDumpString(map));
 
-        Rule rule3 = new BareRule(kb.name2Num("family"), 3, new HashSet<>(), new HashMap<>());
-        rule3.cvt2Uvs2NewLv(kb.name2Num("father"), 2, 0, 0, 1);
-        rule3.cvt2Uvs2NewLv(kb.name2Num("mother"), 2, 0, 0, 0);
-        rule3.cvt2Uvs2NewLv(kb.name2Num("isMale"), 1, 0, 0, 2);
-        assertEquals(rule_strs[3], rule3.toDumpString(kb.getNumerationMap()));
+        Rule rule3 = new BareRule(map.name2Num("family"), 3, new HashSet<>(), new HashMap<>());
+        rule3.cvt2Uvs2NewLv(map.name2Num("father"), 2, 0, 0, 1);
+        rule3.cvt2Uvs2NewLv(map.name2Num("mother"), 2, 0, 0, 0);
+        rule3.cvt2Uvs2NewLv(map.name2Num("isMale"), 1, 0, 0, 2);
+        assertEquals(rule_strs[3], rule3.toDumpString(map));
 
-        Rule rule4 = new BareRule(kb.name2Num("family"), 3, new HashSet<>(), new HashMap<>());
-        rule4.cvt2Uvs2NewLv(kb.name2Num("father"), 2, 0, 0, 1);
-        rule4.cvt2Uvs2NewLv(kb.name2Num("mother"), 2, 0, 0, 0);
+        Rule rule4 = new BareRule(map.name2Num("family"), 3, new HashSet<>(), new HashMap<>());
+        rule4.cvt2Uvs2NewLv(map.name2Num("father"), 2, 0, 0, 1);
+        rule4.cvt2Uvs2NewLv(map.name2Num("mother"), 2, 0, 0, 0);
         rule4.cvt2Uvs2NewLv(0, 2, 1, 1);
-        assertEquals(rule_strs[4], rule4.toDumpString(kb.getNumerationMap()));
+        assertEquals(rule_strs[4], rule4.toDumpString(map));
 
         Rule[] rules = new Rule[]{rule0, rule1, rule2, rule3, rule4};
         for (int i = 0; i < rules.length; i++) {

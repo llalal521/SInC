@@ -1,10 +1,12 @@
 package sinc2.kb;
 
-import sinc2.util.kb.KbRelation;
 import sinc2.util.kb.NumeratedKb;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.*;
 
 /**
@@ -26,7 +28,7 @@ public class SimpleKb {
     /** The list of relations. The ID of each relation is its index in the list */
     protected final SimpleRelation[] relations;
     /** The map from relation names to IDs */
-    protected final Map<String, Integer> relationNameMap;
+    protected final Map<String, SimpleRelation> relationNameMap;
     /** The list of promising constants in the corresponding relations */
     protected int[][][] promisingConstants;
     /** The total number of constants in the KB */
@@ -67,7 +69,7 @@ public class SimpleKb {
         int max_value = 0;
         for (int i = 0; i < relations.length; i++) {
             this.relations[i] = new SimpleRelation(relNames[i], i, relations[i]);
-            relationNameMap.put(relNames[i], i);
+            relationNameMap.put(relNames[i], this.relations[i]);
             max_value = Math.max(max_value, this.relations[i].maxValue());
         }
         totalConstants = max_value;
@@ -82,28 +84,32 @@ public class SimpleKb {
     }
 
     protected SimpleRelation[] loadRelations(String basePath) throws IOException {
-        File kb_dir = NumeratedKb.getKbPath(name, basePath).toFile();
-        String kb_dir_path = kb_dir.getAbsolutePath();
-        File[] files = kb_dir.listFiles();
+        BufferedReader reader = new BufferedReader(new FileReader(NumeratedKb.getRelInfoFilePath(name, basePath).toFile()));
+        String line;
+        int line_num = 0;
+        String kb_dir_path = NumeratedKb.getKbPath(name, basePath).toString();
         List<SimpleRelation> relations = new ArrayList<>();
-        if (null != files) {
-            for (File f: files) {
-                KbRelation.RelationInfo rel_info = KbRelation.parseRelFilePath(f.getName());
-                if (null != rel_info) {
-                    SimpleRelation relation = new SimpleRelation(
-                            rel_info.name, relations.size(), rel_info.arity, rel_info.totalRecords, kb_dir_path
-                    );
-                    relations.add(relation);
-                    relationNameMap.put(relation.name, relation.id);
-                }
+        while (null != (line = reader.readLine())) {
+            String[] components = line.split("\t"); // relation name, arity, total records
+            File rel_file = Paths.get(kb_dir_path, NumeratedKb.getRelDataFileName(line_num)).toFile();
+            line_num++;
+            if (rel_file.exists()) {    // If no file found, the relation is empty, and thus should not be included in the SimpleKb
+                /* Load from file */
+                int rel_id = relations.size();
+                SimpleRelation relation = new SimpleRelation(
+                        components[0], rel_id, Integer.parseInt(components[1]), Integer.parseInt(components[2]),
+                        rel_file.getName(), kb_dir_path
+                );
+                relations.add(relation);
+                relationNameMap.put(relation.name, relation);
             }
         }
+        reader.close();
         return relations.toArray(new SimpleRelation[0]);
     }
 
     public SimpleRelation getRelation(String name) {
-        Integer idx = relationNameMap.get(name);
-        return (null == idx) ? null : relations[idx];
+        return relationNameMap.get(name);
     }
 
     public SimpleRelation getRelation(int id) {
@@ -111,8 +117,8 @@ public class SimpleKb {
     }
 
     public boolean hasRecord(String relationName, int[] record) {
-        Integer idx = relationNameMap.get(relationName);
-        return (null != idx) && relations[idx].hasRow(record);
+        SimpleRelation relation = relationNameMap.get(relationName);
+        return (null != relation) && relation.hasRow(record);
     }
 
     public boolean hasRecord(int relationId, int[] record) {
@@ -120,10 +126,7 @@ public class SimpleKb {
     }
 
     public void setAsEntailed(String relationName, int[] record) {
-        Integer idx = relationNameMap.get(relationName);
-        if (null != idx) {
-            relations[idx].setAsEntailed(record);
-        }
+        relationNameMap.get(relationName).setAsEntailed(record);
     }
 
     public void setAsEntailed(int relationId, int[] record) {
@@ -131,7 +134,7 @@ public class SimpleKb {
     }
 
     public void setAsNotEntailed(String relationName, int[] record) {
-        relations[relationNameMap.get(relationName)].setAsNotEntailed(record);
+        relationNameMap.get(relationName).setAsNotEntailed(record);
     }
 
     public void setAsNotEntailed(int relationId, int[] record) {
