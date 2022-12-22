@@ -207,21 +207,16 @@ public class SimpleRelation extends IntTable {
      * Dump all records to a binary file. The format is the same as "KbRelation".
      *
      * @param basePath The path to where the relation file should be stored.
-     * @throws KbException File writing failure
      * @see KbRelation
      */
-    public void dump(String basePath, String fileName) throws KbException {
-        try {
-            FileOutputStream fos = new FileOutputStream(Paths.get(basePath, fileName).toFile());
-            for (int [] record: sortedRowsByCols[0]) {
-                for (int i : record) {
-                    fos.write(LittleEndianIntIO.leInt2ByteArray(i));
-                }
+    public void dump(String basePath, String fileName) throws IOException {
+        FileOutputStream fos = new FileOutputStream(Paths.get(basePath, fileName).toFile());
+        for (int [] record: sortedRowsByCols[0]) {
+            for (int i : record) {
+                fos.write(LittleEndianIntIO.leInt2ByteArray(i));
             }
-            fos.close();
-        } catch (IOException e) {
-            throw new KbException(e);
         }
+        fos.close();
     }
 
     /**

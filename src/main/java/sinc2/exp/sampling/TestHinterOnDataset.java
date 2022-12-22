@@ -5,8 +5,14 @@ import sinc2.exp.hint.predefined.PredefinedHinter;
 import sinc2.kb.KbException;
 import sinc2.kb.SimpleKb;
 import sinc2.sampling.*;
+import sinc2.util.LittleEndianIntIO;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.HashSet;
+import java.util.Set;
 
 public class TestHinterOnDataset {
     static final int DUP = 1;
@@ -14,6 +20,7 @@ public class TestHinterOnDataset {
     static void runHinter(String kbName, String kbPath, int budget) throws IOException {
         System.out.println("Loading KB ...");
         SimpleKb original_kb = new SimpleKb(kbName, kbPath);
+        Set<Integer> type_values = loadTypeValues(kbName, kbPath);
 
         System.out.println("Hinter on original ...");
         double coverage_threshold = 0.01;
@@ -24,7 +31,7 @@ public class TestHinterOnDataset {
 
         HeadSampler head_sampler = new HeadSampler();
         TailSampler tail_sampler = new TailSampler();
-        MajorNodeSampler major_node_sampler = new MajorNodeSampler();
+        MajorNodeSampler major_node_sampler = new MajorNodeSampler(type_values);
         SnowBallSampler snow_ball_sampler = new SnowBallSampler(4);
         for (int i = 0; i < DUP; i++) {
             System.out.printf("Compressing sampled #%d ...\n", i + 1);
@@ -57,6 +64,20 @@ public class TestHinterOnDataset {
             System.out.printf("(sampling time: %d ms) ...\n", time_done - time_start);
             PredefinedHinter.run(sampling_info.sampledKb, coverage_threshold, tau_threshold, template_names, output_dir);
         }
+    }
+
+    static protected Set<Integer> loadTypeValues(String kbName, String kbPath) {
+        File type_value_file = Paths.get(kbPath, kbName, "TypeValues.dat").toFile();
+        Set<Integer> type_values = new HashSet<>();
+        try (FileInputStream fis = new FileInputStream(type_value_file)) {
+            byte[] buffer = new byte[Integer.BYTES];
+            while (Integer.BYTES == fis.read(buffer)) {
+                type_values.add(LittleEndianIntIO.byteArray2LeInt(buffer));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return type_values;
     }
 
     public static void main(String[] args) throws SincException, KbException, IOException {

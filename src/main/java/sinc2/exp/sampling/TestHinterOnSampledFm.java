@@ -5,9 +5,15 @@ import sinc2.exp.hint.predefined.PredefinedHinter;
 import sinc2.kb.KbException;
 import sinc2.kb.SimpleKb;
 import sinc2.sampling.*;
+import sinc2.util.LittleEndianIntIO;
 import sinc2.util.datagen.FamilyRelationGenerator;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.HashSet;
+import java.util.Set;
 
 public class TestHinterOnSampledFm {
 
@@ -28,7 +34,7 @@ public class TestHinterOnSampledFm {
         MDRWSampler mdrw_sampler = new MDRWSampler(dimension);
         HeadSampler head_sampler = new HeadSampler();
         TailSampler tail_sampler = new TailSampler();
-        MajorNodeSampler major_node_sampler = new MajorNodeSampler();
+        MajorNodeSampler major_node_sampler = new MajorNodeSampler(new HashSet<>());
         SnowBallSampler snow_ball_sampler = new SnowBallSampler(4);
         for (int i = 0; i < DUP; i++) {
             System.out.printf("Compressing sampled #%d ...\n", i + 1);

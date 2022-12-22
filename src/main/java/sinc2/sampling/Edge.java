@@ -3,7 +3,7 @@ package sinc2.sampling;
 /**
  * A complete edge structure (a triple).
  */
-class Edge {
+public class Edge {
     public final int subj;
     public final int pred;
     public final int obj;

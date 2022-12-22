@@ -1,11 +1,11 @@
 package sinc2.kb;
 
+import sinc2.util.kb.KbRelation;
 import sinc2.util.kb.NumeratedKb;
+import sinc2.util.kb.NumerationMap;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -106,6 +106,45 @@ public class SimpleKb {
         }
         reader.close();
         return relations.toArray(new SimpleRelation[0]);
+    }
+
+    public void dump(String basePath, String[] mappedNames) throws IOException {
+        /* Check & create dir */
+        Path kb_dir = NumeratedKb.getKbPath(name, basePath);
+        File kb_dir_file = kb_dir.toFile();
+        if (!kb_dir_file.exists() && !kb_dir_file.mkdirs()) {
+            throw new IOException("KB directory creation failed: " + kb_dir_file.getAbsolutePath());
+        }
+
+        /* Dump mappings */
+        String kb_dir_path = kb_dir_file.getAbsolutePath();
+        int map_num = NumerationMap.MAP_FILE_NUMERATION_START;
+        PrintWriter writer = new PrintWriter(NumerationMap.getMapFilePath(kb_dir_path, map_num).toFile());
+        int records_cnt = 0;
+        for (int i = 1; i < mappedNames.length; i++) {
+            String name = mappedNames[i];
+            if (NumerationMap.MAX_MAP_ENTRIES <= records_cnt) {
+                writer.close();
+                map_num++;
+                records_cnt = 0;
+                writer = new PrintWriter(NumerationMap.getMapFilePath(kb_dir_path, map_num).toFile());
+            }
+            writer.println((null == name) ? "" : name);
+            records_cnt++;
+        }
+        writer.close();
+
+        /* Dump relations */
+        writer = new PrintWriter(NumeratedKb.getRelInfoFilePath(name, basePath).toFile());
+        for (int rel_id = 0; rel_id < relations.length; rel_id++) {
+            SimpleRelation relation = relations[rel_id];
+            writer.printf("%s\t%d\t%d\n", relation.name, relation.totalCols(), relation.totalRows());
+            if (0 < relation.totalRows()) {
+                /* Dump only non-empty relations */
+                relation.dump(kb_dir_path, NumeratedKb.getRelDataFileName(rel_id));
+            }
+        }
+        writer.close();
     }
 
     public SimpleRelation getRelation(String name) {

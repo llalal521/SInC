@@ -3,7 +3,7 @@ package sinc2.sampling;
 /**
  * In/Out edge information linked to/from a node in KG.
  */
-class EdgeInNode {
+public class EdgeInNode {
     public final int pred;
     public final int neighbourNum;
 

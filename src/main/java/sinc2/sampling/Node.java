@@ -7,7 +7,7 @@ import java.util.Random;
 /**
  * A node structure (with two linked lists of in- and out-edges)
  */
-class Node {
+public class Node {
     public final int num;
     public final List<EdgeInNode> inEdgeInNodes = new ArrayList<>();
     public final List<EdgeInNode> outEdgeInNodes = new ArrayList<>();
