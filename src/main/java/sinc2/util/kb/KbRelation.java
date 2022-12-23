@@ -3,20 +3,16 @@ package sinc2.util.kb;
 import sinc2.common.Argument;
 import sinc2.common.Record;
 import sinc2.kb.KbException;
-import sinc2.util.LittleEndianIntIO;
+import sinc2.util.io.IntReader;
+import sinc2.util.io.IntWriter;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * The class for the numeration representation of the records in a relation.
@@ -56,24 +52,26 @@ public class KbRelation implements Iterable<Record> {
      * Load a single relation from a local file. If the 'numMap' is not NULL, every loaded numeration is checked for
      * validness in the map.
      *
-     * @param name The name of the relation
-     * @param id The numeration of the relation name
-     * @param arity The arity of the relation
-     * @param fileName The name of the file
-     * @param kbPtah The path to the KB, where the relation file is located
-     * @param map The numeration map for validness check
+     * @param name         The name of the relation
+     * @param id           The numeration of the relation name
+     * @param arity        The arity of the relation
+     * @param totalRecords Total number of records in the relation
+     * @param fileName     The name of the file
+     * @param kbPtah       The path to the KB, where the relation file is located
+     * @param map          The numeration map for validness check
      * @throws IOException File read fails
      * @throws KbException 'map' is not NULL and a loaded numeration is not mapped
      */
-    public KbRelation(String name, int id, int arity, String fileName, String kbPtah, NumerationMap map)
-            throws IOException, KbException {
+    public KbRelation(
+            String name, int id, int arity, int totalRecords, String fileName, String kbPtah, NumerationMap map
+    ) throws IOException, KbException {
         this.name = name;
         this.id = id;
         this.arity = arity;
         this.records = new HashSet<>();
 
         File rel_file = Paths.get(kbPtah, fileName).toFile();
-        loadHandler(rel_file, map);
+        loadHandler(rel_file, totalRecords, map);
     }
 
     /**
@@ -95,38 +93,30 @@ public class KbRelation implements Iterable<Record> {
      * @throws IOException File read fails
      * @throws KbException 'map' is not NULL and a loaded numeration is not mapped
      */
-    protected void loadHandler(File file, NumerationMap map) throws IOException, KbException {
-        FileInputStream fis = new FileInputStream(file);
-        byte[] buffer = new byte[Integer.BYTES];
-        int read_args;
+    protected void loadHandler(File file, int records, NumerationMap map) throws IOException, KbException {
+        IntReader reader = new IntReader(file);
         if (null == map) {
-            while (true) {
+            for (int i = 0; i < records; i++) {
                 int[] args = new int[arity];
-                for (read_args = 0; read_args < arity && Integer.BYTES == fis.read(buffer); read_args++) {
-                    args[read_args] = LittleEndianIntIO.byteArray2LeInt(buffer);
-                }
-                if (read_args < arity) {
-                    break;
+                for (int arg_idx = 0; arg_idx < arity; arg_idx++) {
+                    args[arg_idx] = reader.next();
                 }
                 addRecord(new Record(args));
             }
         } else {
-            while (true) {
+            for (int i = 0; i < records; i++) {
                 int[] args = new int[arity];
-                for (read_args = 0; read_args < arity && Integer.BYTES == fis.read(buffer); read_args++) {
-                    args[read_args] = LittleEndianIntIO.byteArray2LeInt(buffer);
-                    if (null == map.num2Name(Argument.decode(args[read_args]))) {
-                        fis.close();
-                        throw new KbException(String.format("Loaded numeration is not mapped: %d", args[read_args]));
+                for (int arg_idx = 0; arg_idx < arity; arg_idx++) {
+                    args[arg_idx] = reader.next();
+                    if (null == map.num2Name(Argument.decode(args[arg_idx]))) {
+                        reader.close();
+                        throw new KbException(String.format("Loaded numeration is not mapped: %d", args[arg_idx]));
                     }
-                }
-                if (read_args < arity) {
-                    break;
                 }
                 addRecord(new Record(args));
             }
         }
-        fis.close();
+        reader.close();
     }
 
     /**
@@ -187,13 +177,13 @@ public class KbRelation implements Iterable<Record> {
     }
 
     protected void dumpHandler(File file) throws IOException {
-        FileOutputStream fos = new FileOutputStream(file);
+        IntWriter writer = new IntWriter(file);
         for (Record record: records) {
-            for (int i: record.args) {
-                fos.write(LittleEndianIntIO.leInt2ByteArray(i));
+            for (int arg: record.args) {
+                writer.write(arg);
             }
         }
-        fos.close();
+        writer.close();
     }
 
     public boolean hasRecord(Record record) {

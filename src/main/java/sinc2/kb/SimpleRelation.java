@@ -1,13 +1,11 @@
 package sinc2.kb;
 
-import sinc2.common.Record;
 import sinc2.util.ArrayOperation;
-import sinc2.util.LittleEndianIntIO;
+import sinc2.util.io.IntReader;
+import sinc2.util.io.IntWriter;
 import sinc2.util.kb.KbRelation;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -43,17 +41,17 @@ public class SimpleRelation extends IntTable {
      * @see KbRelation
      */
     static protected int[][] loadFile(File file, int arity, int totalRecords) throws IOException {
-        FileInputStream fis = new FileInputStream(file);
+        IntReader reader = new IntReader(file);
         byte[] buffer = new byte[Integer.BYTES];
         int[][] records = new int[totalRecords][];
         for (int i = 0; i < totalRecords; i++) {
             int[] record = new int[arity];
-            for (int arg_idx = 0; arg_idx < arity && Integer.BYTES == fis.read(buffer); arg_idx++) {
-                record[arg_idx] = LittleEndianIntIO.byteArray2LeInt(buffer);
+            for (int arg_idx = 0; arg_idx < arity; arg_idx++) {
+                record[arg_idx] = reader.next();
             }
             records[i] = record;
         }
-        fis.close();
+        reader.close();
         return records;
     }
 
@@ -210,13 +208,13 @@ public class SimpleRelation extends IntTable {
      * @see KbRelation
      */
     public void dump(String basePath, String fileName) throws IOException {
-        FileOutputStream fos = new FileOutputStream(Paths.get(basePath, fileName).toFile());
-        for (int [] record: sortedRowsByCols[0]) {
-            for (int i : record) {
-                fos.write(LittleEndianIntIO.leInt2ByteArray(i));
+        IntWriter writer = new IntWriter(Paths.get(basePath, fileName).toFile());
+        for (int[] record: sortedRowsByCols[0]) {
+            for (int arg : record) {
+                writer.write(arg);
             }
         }
-        fos.close();
+        writer.close();
     }
 
     /**
@@ -228,22 +226,20 @@ public class SimpleRelation extends IntTable {
      * @see KbRelation
      */
     public void dumpNecessaryRecords(String basePath, String fileName, List<int[]> fvsRecords) throws KbException {
-        try {
-            FileOutputStream fos = new FileOutputStream(Paths.get(basePath, fileName).toFile());
+        try (IntWriter writer = new IntWriter(Paths.get(basePath, fileName).toFile())) {
             int[][] records = sortedRowsByCols[0];
             for (int idx = 0; idx < totalRows; idx++) {
                 if (0 == entailment(idx)) {
-                    for (int i : records[idx]) {
-                        fos.write(LittleEndianIntIO.leInt2ByteArray(i));
+                    for (int arg : records[idx]) {
+                        writer.write(arg);
                     }
                 }
             }
-            for (int [] record: fvsRecords) {
-                for (int i : record) {
-                    fos.write(LittleEndianIntIO.leInt2ByteArray(i));
+            for (int[] record: fvsRecords) {
+                for (int arg : record) {
+                    writer.write(arg);
                 }
             }
-            fos.close();
         } catch (IOException e) {
             throw new KbException(e);
         }

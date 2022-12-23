@@ -238,7 +238,7 @@ class NumeratedKbTest {
         relation.dump(TestKbManager.MEM_DIR, "reflex.rel");
         testKbManager.appendTmpFile(Paths.get(TestKbManager.MEM_DIR, "reflex.rel").toAbsolutePath().toString());
 
-        relation = kb.loadRelation(TestKbManager.MEM_DIR, "reflex.rel", "reflex", 2, true);
+        relation = kb.loadRelation(TestKbManager.MEM_DIR, "reflex.rel", "reflex", 2, 3, true);
         assertEquals(14, kb.totalMappings());
         assertEquals(4, kb.totalRelations());
         assertEquals(15, kb.totalRecords());
@@ -258,7 +258,7 @@ class NumeratedKbTest {
         relation.addRecord(new Record(new int[]{8, 8}));
         relation.dump(TestKbManager.MEM_DIR, "reflex2.rel");
         testKbManager.appendTmpFile(Paths.get(TestKbManager.MEM_DIR, "reflex2.rel").toAbsolutePath().toString());
-        assertThrows(KbException.class, () -> kb.loadRelation(TestKbManager.MEM_DIR, "reflex2.rel", "reflex2", 2, true));
+        assertThrows(KbException.class, () -> kb.loadRelation(TestKbManager.MEM_DIR, "reflex2.rel", "reflex2", 2, 3, true));
     }
 
     @Test

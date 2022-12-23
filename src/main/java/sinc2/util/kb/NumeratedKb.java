@@ -159,7 +159,10 @@ public class NumeratedKb {
             KbRelation relation;
             if (rel_file.exists()) {
                 /* Load from file */
-                loadRelation(kbDirPath, rel_file.getName(), components[0], Integer.parseInt(components[1]), check);
+                loadRelation(
+                        kbDirPath, rel_file.getName(), components[0], Integer.parseInt(components[1]),
+                        Integer.parseInt(components[2]), check
+                );
             } else {
                 /* No relation data file means the relation is empty. Create an empty relation */
                 relation = new KbRelation(components[0], rel_id, Integer.parseInt(components[1]));
@@ -239,13 +242,14 @@ public class NumeratedKb {
      * @throws KbException The name 'relName' has already been used; numerations in loaded records are not mapped if check=true.
      * @throws IOException File I/O errors
      */
-    public KbRelation loadRelation(String relBasePath, String fileName, String relName, int arity, boolean check)
-            throws KbException, IOException {
+    public KbRelation loadRelation(
+            String relBasePath, String fileName, String relName, int arity, int totalRecords, boolean check
+    ) throws KbException, IOException {
         KbRelation relation = relationMap.get(relName);
         if (null != relation) {
             throw new KbException("The relation has already been created in the KB: " + relName);
         }
-        relation = new KbRelation(relName, relations.size(), arity, fileName, relBasePath, check ? numMap:null);
+        relation = new KbRelation(relName, relations.size(), arity, totalRecords, fileName, relBasePath, check ? numMap:null);
         relationMap.put(relName, relation);
         relations.add(relation);
         for (Record record: relation) {

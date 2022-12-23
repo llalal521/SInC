@@ -7,7 +7,6 @@ import sinc2.common.Record;
 import sinc2.kb.KbException;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -77,7 +76,7 @@ class KbRelationTest {
     @Test
     void testRead1() throws IOException, KbException {
         KbRelation relation = new KbRelation(
-                "family", 0, 3, "0.rel", testKbManager.getKbPath(), null
+                "family", 0, 3, 4, "0.rel", testKbManager.getKbPath(), null
         );
 
         assertEquals("family", relation.getName());
@@ -92,7 +91,7 @@ class KbRelationTest {
     @Test
     void testRead2() throws IOException, KbException {
         KbRelation relation = new KbRelation(
-                "mother", 1, 2, "1.rel", testKbManager.getKbPath(), null
+                "mother", 1, 2, 4, "1.rel", testKbManager.getKbPath(), null
         );
 
         assertEquals("mother", relation.getName());
@@ -107,7 +106,7 @@ class KbRelationTest {
     @Test
     void testRead3() throws IOException, KbException {
         KbRelation relation = new KbRelation(
-                "father", 2, 2, "2.rel", testKbManager.getKbPath(), null
+                "father", 2, 2, 4, "2.rel", testKbManager.getKbPath(), null
         );
 
         assertEquals("father", relation.getName());
@@ -122,12 +121,12 @@ class KbRelationTest {
     @Test
     void testWrite1() throws IOException, KbException {
         KbRelation relation = new KbRelation(
-                "family", 0, 3, "0.rel", testKbManager.getKbPath(), null
+                "family", 0, 3, 4, "0.rel", testKbManager.getKbPath(), null
         );
         String tmp_dir_path = testKbManager.createTmpDir();
         relation.dump(tmp_dir_path, "0.rel");
         KbRelation relation2 = new KbRelation(
-                "family", 0, 3, "0.rel", tmp_dir_path, null
+                "family", 0, 3, 4, "0.rel", tmp_dir_path, null
         );
 
         assertEquals("family", relation2.getName());
@@ -142,11 +141,11 @@ class KbRelationTest {
     @Test
     void testWrite2() throws IOException, KbException {
         KbRelation relation = new KbRelation(
-                "family", 0, 3, "0.rel", testKbManager.getKbPath(), null
+                "family", 0, 3, 4, "0.rel", testKbManager.getKbPath(), null
         );
         relation.dump(testKbManager.getKbPath(), "family.ceg");
         KbRelation relation2 = new KbRelation(
-                "family", 0, 3, "family.ceg", testKbManager.getKbPath(), null
+                "family", 0, 3, 4, "family.ceg", testKbManager.getKbPath(), null
         );
 
         assertEquals("family", relation2.getName());
@@ -161,7 +160,7 @@ class KbRelationTest {
     @Test
     void testAddRecord() throws IOException, KbException {
         KbRelation relation = new KbRelation(
-                "family", 0, 3, "0.rel", testKbManager.getKbPath(), null
+                "family", 0, 3, 4, "0.rel", testKbManager.getKbPath(), null
         );
         relation.addRecord(new Record(new int[]{4, 4, 4}));
         relation.addRecord(new Record(new int[]{5, 5, 5}));
@@ -184,7 +183,7 @@ class KbRelationTest {
     @Test
     void testAddRecords() throws IOException, KbException {
         KbRelation relation = new KbRelation(
-                "family", 0, 3, "0.rel", testKbManager.getKbPath(), null
+                "family", 0, 3, 4, "0.rel", testKbManager.getKbPath(), null
         );
         relation.addRecords(List.of(new Record(new int[]{4, 4, 4}), new Record(new int[]{5, 5, 5})));
         checkRecordSet(new HashSet<>(List.of(
@@ -204,7 +203,7 @@ class KbRelationTest {
     @Test
     void testRemoveRecord() throws IOException, KbException {
         KbRelation relation = new KbRelation(
-                "family", 0, 3, "0.rel", testKbManager.getKbPath(), null
+                "family", 0, 3, 4, "0.rel", testKbManager.getKbPath(), null
         );
         relation.removeRecord(new Record(new int[]{4, 4, 4}));
         relation.removeRecord(new Record(new int[]{4, 7, 10}));
@@ -232,7 +231,7 @@ class KbRelationTest {
     @Test
     void testAddWithRemoveRecord() throws IOException, KbException {
         KbRelation relation = new KbRelation(
-                "family", 0, 3, "0.rel", testKbManager.getKbPath(), null
+                "family", 0, 3, 4, "0.rel", testKbManager.getKbPath(), null
         );
         relation.removeRecord(new Record(new int[]{4, 4, 4}));
         relation.removeRecord(new Record(new int[]{4, 7, 10}));

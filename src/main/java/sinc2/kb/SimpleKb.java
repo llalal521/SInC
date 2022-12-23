@@ -1,13 +1,15 @@
 package sinc2.kb;
 
-import sinc2.util.kb.KbRelation;
 import sinc2.util.kb.NumeratedKb;
 import sinc2.util.kb.NumerationMap;
 
 import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A simple in-memory KB. The values in the KB are converted to integers so each relation in the KB is a 2D table of
