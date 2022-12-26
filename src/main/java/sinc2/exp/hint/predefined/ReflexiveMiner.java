@@ -11,6 +11,9 @@ import java.util.List;
  * 2. Reflexive:
  *   h(X, X) :-
  *
+ * @deprecated Reflexive patterns lacks prerequisites. Therefore, the variable 'X' can be replaced by any constant in
+ * the KB. This is not a promising structure of patterns in large KBs, especially those can be separated to multiple
+ * clusters.
  * @since 2.0
  */
 public class ReflexiveMiner extends TemplateMiner {

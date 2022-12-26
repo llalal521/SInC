@@ -315,6 +315,25 @@ public class IntTable implements Iterable<int[]> {
             return new int[0][];
         }
         Arrays.sort(rows, rowComparator);
+        return intersectionHandler(rows);
+    }
+
+    /**
+     * Find the intersection of this table and another list of rows. The two should have the same number of columns, and
+     * the list of rows should NOT contain repeated elements.
+     * Note that this method will NOT sort "rows", as it assumes the rows are already sorted alphabetically.
+     */
+    public int[][] intersectionWithSortedRows(int[][] rows) {
+        if (0 == rows.length || totalCols != rows[0].length) {
+            return new int[0][];
+        }
+        return intersectionHandler(rows);
+    }
+
+    /**
+     * Handler of the intersection operation.
+     */
+    protected int[][] intersectionHandler(int[][] rows) {
         int[][] this_rows = sortedRowsByCols[0];
         List<int[]> results = new ArrayList<>();
         int idx = 0;

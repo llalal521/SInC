@@ -11,6 +11,7 @@ import java.util.List;
  * 1. Type Inference:
  *   h(X) :- p(..., Xi, ...), φ(p) > 1
  *
+ * @deprecated All type related patterns should be checked in the original KB, instead of the sampled KB.
  * @since 2.0
  */
 public class TypeInferenceMiner extends TemplateMiner {

@@ -40,7 +40,7 @@ public class SimpleRelation extends IntTable {
      * @throws IOException
      * @see KbRelation
      */
-    static protected int[][] loadFile(File file, int arity, int totalRecords) throws IOException {
+    static public int[][] loadFile(File file, int arity, int totalRecords) throws IOException {
         IntReader reader = new IntReader(file);
         byte[] buffer = new byte[Integer.BYTES];
         int[][] records = new int[totalRecords][];

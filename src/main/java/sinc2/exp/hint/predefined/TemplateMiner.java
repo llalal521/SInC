@@ -16,9 +16,9 @@ import java.util.Map;
 /**
  * This is the base class of all predefined template miners. Each miner should implement the "matchTemplate" method.
  * Followings are currently defined templates:
- * 1. Type Inference:
+ * 1. Type Inference (These patterns are not handled in sampled KBs):
  *   h(X) :- p(..., Xi, ...), φ(p) > 1
- * 2. Reflexive:
+ * 2. Reflexive (These patterns are not promising and will be excluded):
  *   h(X, X) :-
  * 3. Subsumption:
  *   h(X0, ..., Xk) :- p(X0, ..., Xk); [(p, q)]
@@ -84,7 +84,7 @@ public abstract class TemplateMiner {
      * positive entailments of the rule to the corresponding entailment set.
      *
      * @param headRelation The head relation
-     * @param entailments  The entailments of the rule
+     * @param entailments  The entailments of the rule. The rows should be sorted alphabetically.
      * @param matchedRules The list of discovered rules of the template
      * @param ruleString   The rule string
      */
@@ -98,7 +98,7 @@ public abstract class TemplateMiner {
         if (COVERAGE_THRESHOLD > ((double) entailments.length) / headRelation.totalRows()) {
             return;
         }
-        int[][] positive_entailments = headRelation.intersection(entailments);
+        int[][] positive_entailments = headRelation.intersectionWithSortedRows(entailments);
         double coverage = ((double) positive_entailments.length) / headRelation.totalRows();
         Eval eval = new Eval(null, positive_entailments.length, entailments.length, templateLength());
         if (COVERAGE_THRESHOLD <= coverage && TAU_THRESHOLD <= eval.value(EvalMetric.CompressionRatio)) {
