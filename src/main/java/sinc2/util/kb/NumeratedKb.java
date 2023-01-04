@@ -877,6 +877,7 @@ public class NumeratedKb {
                         replacement.id = rel_idx;
                         relations.set(rel_idx, replacement);
                         relations.set(last_rel_idx, null);
+                        break;
                     }
                 }
             }
