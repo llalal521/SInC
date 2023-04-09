@@ -56,7 +56,7 @@ public class Eval {
 
     public static final Eval MIN = new EvalMin();
 
-    private static final double COMP_RATIO_USEFUL_THRESHOLD = 0.5;
+    private static final double COMP_RATIO_USEFUL_THRESHOLD = 0.0;
     private static final double COMP_CAPACITY_USEFUL_THRESHOLD = 0.0;
     private static final double INFO_GAIN_USEFUL_THRESHOLD = 0.00;
 
@@ -76,7 +76,32 @@ public class Eval {
         this.allCnt = allCnt;
         this.ruleSize = ruleSize;
 
-        double tmp_ratio = posCnt / (allCnt + ruleSize);
+        double tmp_ratio = posCnt / (allCnt + ruleSize); //TODO delete rule length
+        this.compRatio = Double.isNaN(tmp_ratio) ? 0 : tmp_ratio;
+
+        this.compCapacity = posCnt - negCnt - ruleSize;
+
+        if (0 == posCnt) {
+            this.infoGain = 0;
+        } else {
+            if (null == previousEval || 0 == previousEval.posCnt) {
+                this.infoGain = posCnt * Math.log(posCnt / allCnt);
+            } else {
+                this.infoGain = posCnt * (
+                        Math.log(posCnt / allCnt) - Math.log(previousEval.posCnt / previousEval.allCnt)
+                );
+            }
+        }
+        this.cumulatedInfo = ((null == previousEval) ? 0 : previousEval.cumulatedInfo) + this.infoGain;
+    }
+
+    public Eval(Eval previousEval, double posCnt, double allCnt, double stms, int ruleSize) {
+        this.posCnt = posCnt;
+        this.negCnt = allCnt - posCnt;
+        this.allCnt = allCnt;
+        this.ruleSize = ruleSize;
+
+        double tmp_ratio = (posCnt - negCnt) / stms; //TODO delete rule length
         this.compRatio = Double.isNaN(tmp_ratio) ? 0 : tmp_ratio;
 
         this.compCapacity = posCnt - negCnt - ruleSize;
