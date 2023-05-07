@@ -4,6 +4,7 @@ import org.apache.jena.ext.com.google.common.collect.HashMultimap;
 import org.apache.jena.ext.com.google.common.collect.Multimap;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.riot.RDFDataMgr;
 
 import java.io.File;
 import java.util.*;
@@ -15,17 +16,21 @@ public class RDFModelHandler {
      * @return RDF Model
      */
     public static Model getModel(String filepath){
-        Model model = ModelFactory.createDefaultModel();
+        Model model = RDFDataMgr.loadModel(filepath);
         File file = new File(filepath);
         if(!file.exists()){
             System.out.println("file not found");
             return null;
         }
-        model.read(filepath);
         return model;
     }
 
     public static int getStmCnts(Model model){
+        if(RDFQuery.map.containsKey("stm")){
+            RDFQuery.map.put("stm", RDFQuery.map.get("stm") + 1);
+        } else {
+            RDFQuery.map.put("stm", 1);
+        }
         String queryString = "PREFIX fa: <http://w3.org/family/1.0>\n" +
                 "SELECT ?a\n" +
                 "WHERE{\n" +
@@ -35,6 +40,11 @@ public class RDFModelHandler {
     }
 
     public static int getConsts(Model model){
+        if(RDFQuery.map.containsKey("consts")){
+            RDFQuery.map.put("consts", RDFQuery.map.get("consts") + 2);
+        } else {
+            RDFQuery.map.put("consts", 2);
+        }
         String queryString = "PREFIX fa: <http://w3.org/family/1.0>\n" +
                 "SELECT DISTINCT ?a\n" +
                 "WHERE{\n" +
@@ -53,6 +63,11 @@ public class RDFModelHandler {
     }
 
     public static List<String> getProperties(Model model){
+        if(RDFQuery.map.containsKey("pros")){
+            RDFQuery.map.put("pros", RDFQuery.map.get("pros") + 1);
+        } else {
+            RDFQuery.map.put("pros", 1);
+        }
         String queryString = "PREFIX fa: <http://w3.org/family/1.0>\n" +
                 "SELECT DISTINCT ?x\n" +
                 "WHERE{\n" +

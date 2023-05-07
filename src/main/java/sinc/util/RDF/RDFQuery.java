@@ -1,14 +1,21 @@
 package sinc.util.RDF;
 
+import com.github.andrewoma.dexx.collection.Pair;
 import org.apache.jena.base.Sys;
 import org.apache.jena.ext.com.google.common.collect.Multimap;
 import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.Model;
-import sinc2.util.Pair;
 
 import java.util.*;
 
 public class RDFQuery {
+    public static int times = 0;
+
+    public static Map<String, Integer> map = new HashMap<>();
+
+    public static int evals = 0;
+    public static int extens = 0;
+
     /**
      * function to generate simple query statements
      * @param model RDF model
@@ -34,9 +41,9 @@ public class RDFQuery {
         // WHERE Portion
         s.append("WHERE {\n");
         for (Map.Entry<String, List<Pair<Integer, String>>> entry : map.entries()) {
-            s.append(entry.getValue().get(0).first == 0 ? " ?" + entry.getValue().get(0).second : " " + entry.getValue().get(0).second)
+            s.append(entry.getValue().get(0).component1() == 0 ? " ?" + entry.getValue().get(0).component2() : " " + entry.getValue().get(0).component2())
                     .append(" ").append(entry.getKey())
-                    .append(entry.getValue().get(1).first == 0 ? " ?" + entry.getValue().get(1).second : " " + entry.getValue().get(1).second)
+                    .append(entry.getValue().get(1).component1() == 0 ? " ?" + entry.getValue().get(1).component2() : " " + entry.getValue().get(1).component2())
                     .append(" .\n");
         }
         s.append("}\n");

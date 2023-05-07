@@ -76,10 +76,10 @@ public class Eval {
         this.allCnt = allCnt;
         this.ruleSize = ruleSize;
 
-        double tmp_ratio = posCnt / (allCnt + ruleSize); //TODO delete rule length
+        double tmp_ratio = posCnt / allCnt; //TODO delete rule length
         this.compRatio = Double.isNaN(tmp_ratio) ? 0 : tmp_ratio;
 
-        this.compCapacity = posCnt - negCnt - ruleSize;
+        this.compCapacity = posCnt - negCnt;
 
         if (0 == posCnt) {
             this.infoGain = 0;
@@ -104,7 +104,7 @@ public class Eval {
         double tmp_ratio = (posCnt - negCnt) / stms; //TODO delete rule length
         this.compRatio = Double.isNaN(tmp_ratio) ? 0 : tmp_ratio;
 
-        this.compCapacity = posCnt - negCnt - ruleSize;
+        this.compCapacity = posCnt - negCnt;
 
         if (0 == posCnt) {
             this.infoGain = 0;

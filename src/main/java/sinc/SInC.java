@@ -450,7 +450,8 @@ public abstract class SInC {
             throws InterruptedSignal {
         switch (updateStatus) {
             case NORMAL:
-                if (extendedRule.getEval().value(config.evalMetric) > originalRule.getEval().value(config.evalMetric)) {
+                if (extendedRule.getEval().value(config.evalMetric) > originalRule.getEval().value(config.evalMetric)
+                && extendedRule.length() < 4) {
                     candidates.add(extendedRule);
                 }
                 break;

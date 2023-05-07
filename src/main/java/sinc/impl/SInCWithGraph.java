@@ -11,7 +11,7 @@ import sinc.util.graph.BaseGraphNode;
 import java.io.*;
 import java.util.*;
 
-public class SInCWithSQL {
+public class SInCWithGraph {
 
     protected static final int CONST_ID = -1;
     protected static final BaseGraphNode<Predicate> AXIOM_NODE = new BaseGraphNode<>(new Predicate("⊥", 0));
@@ -23,6 +23,7 @@ public class SInCWithSQL {
 
     protected Model model;
     protected int stms;
+    protected Graph graph;
     protected int consts;
 
     protected final Map<String, List<String>[]> func_2_promising_const_map = getFunctor2PromisingConstantMap();
@@ -46,7 +47,7 @@ public class SInCWithSQL {
         public int fvsVertices = 0;
     }
 
-    public SInCWithSQL(SincConfig config, String kbPath, String dumpPath, String logPath) {
+    public SInCWithGraph(SincConfig config, String kbPath, String dumpPath, String logPath) {
         this.config = config;
         this.kbPath = kbPath;
         this.dumpPath = dumpPath;
@@ -74,11 +75,16 @@ public class SInCWithSQL {
     }
 
     protected List<String> getTargetFunctors(){
-        return RDFModelHandler.getProperties(model);
+//        return RDFModelHandler.getProperties(model);
+        List<String> res = new LinkedList<>();
+        for(int i = 0; i < graph.relation_num; ++i){
+            res.add(graph.predicates.get(i));
+        }
+        return res;
     }
 
     protected Rule getStartRule(String headFunctor, int arity, Set<RuleFingerPrint> cache){
-        return new RuleWithSQL(headFunctor, arity, cache, model, stms, consts, func_2_promising_const_map);
+        return new RuleWithGraph(headFunctor, arity, cache, graph, func_2_promising_const_map);
     }
 
     protected Rule findRule(String headFunctor) throws InterruptedSignal {
@@ -185,14 +191,14 @@ public class SInCWithSQL {
             for (ArgPos vacant: vacant_list) {
                 for (VarIndicator var_location: var_locations) {
 //                    if (columnSimilar(rule.getPredicate(vacant.predIdx).functor, vacant.argIdx, var_location.functor, var_location.idx)) {
-                        /* 尝试将已知变量填入空白参数 */
-                        final Rule new_rule = rule.clone();
-                        final Rule.UpdateStatus update_status = new_rule.boundFreeVar2ExistingVar(
-                                vacant.predIdx, vacant.argIdx, var_id
-                        );
+                    /* 尝试将已知变量填入空白参数 */
+                    final Rule new_rule = rule.clone();
+                    final Rule.UpdateStatus update_status = new_rule.boundFreeVar2ExistingVar(
+                            vacant.predIdx, vacant.argIdx, var_id
+                    );
                     RDFQuery.extens ++;
-                        checkThenAddRule(update_status, new_rule, rule, candidates);
-                        break;
+                    checkThenAddRule(update_status, new_rule, rule, candidates);
+                    break;
 //                    }
                 }
             }
@@ -200,16 +206,17 @@ public class SInCWithSQL {
             for (Map.Entry<String, Integer> entry: func_2_arity_map.entrySet()) {
                 /* 拓展一个谓词，并尝试一个已知变量 */
                 final String functor = entry.getKey();
+                if(functor.equals(rule.getHead().functor))  continue;
                 final int arity = entry.getValue();
                 for (int arg_idx = 0; arg_idx < arity; arg_idx++) {
                     for (VarIndicator var_location: var_locations) {
 //                        if (columnSimilar(functor, arg_idx, var_location.functor, var_location.idx)) {
-                            final Rule new_rule = rule.clone();
-                            final Rule.UpdateStatus update_status = new_rule.boundFreeVar2ExistingVar(
-                                    functor, arity, arg_idx, var_id
-                            );
+                        final Rule new_rule = rule.clone();
+                        final Rule.UpdateStatus update_status = new_rule.boundFreeVar2ExistingVar(
+                                functor, arity, arg_idx, var_id
+                        );
                         RDFQuery.extens ++;
-                            checkThenAddRule(update_status, new_rule, rule, candidates);
+                        checkThenAddRule(update_status, new_rule, rule, candidates);
 //                        }
                     }
                 }
@@ -240,26 +247,27 @@ public class SInCWithSQL {
                 /* 新变量的第二个位置可以是当前rule中的其他空位 */
                 final ArgPos second_vacant = vacant_list.get(j);
 //                if (columnSimilar(functor1, first_vacant.argIdx,rule.getPredicate(second_vacant.predIdx).functor, second_vacant.argIdx)) {
-                    final Rule new_rule = rule.clone();
-                    final Rule.UpdateStatus update_status = new_rule.boundFreeVars2NewVar(
-                            first_vacant.predIdx, first_vacant.argIdx, second_vacant.predIdx, second_vacant.argIdx
-                    );
+                final Rule new_rule = rule.clone();
+                final Rule.UpdateStatus update_status = new_rule.boundFreeVars2NewVar(
+                        first_vacant.predIdx, first_vacant.argIdx, second_vacant.predIdx, second_vacant.argIdx
+                );
                 RDFQuery.extens ++;
-                    checkThenAddRule(update_status, new_rule, rule, candidates);
+                checkThenAddRule(update_status, new_rule, rule, candidates);
 //                }
             }
             for (Map.Entry<String, Integer> entry: func_2_arity_map.entrySet()) {
                 /* 新变量的第二个位置也可以是拓展一个谓词以后的位置 */
                 final String functor = entry.getKey();
+                if(functor.equals(rule.getHead().functor))  continue;
                 final int arity = entry.getValue();
                 for (int arg_idx = 0; arg_idx < arity; arg_idx++) {
 //                    if (columnSimilar(functor1, first_vacant.argIdx, functor, arg_idx)) {
-                        final Rule new_rule = rule.clone();
-                        final Rule.UpdateStatus update_status = new_rule.boundFreeVars2NewVar(
-                                functor, arity, arg_idx, first_vacant.predIdx, first_vacant.argIdx
-                        );
+                    final Rule new_rule = rule.clone();
+                    final Rule.UpdateStatus update_status = new_rule.boundFreeVars2NewVar(
+                            functor, arity, arg_idx, first_vacant.predIdx, first_vacant.argIdx
+                    );
                     RDFQuery.extens ++;
-                        checkThenAddRule(update_status, new_rule, rule, candidates);
+                    checkThenAddRule(update_status, new_rule, rule, candidates);
 //                    }
                 }
             }
@@ -267,9 +275,13 @@ public class SInCWithSQL {
     }
 
     protected Map<String, Integer> getFunctor2ArityMap(){
-        return RDFModelHandler.getPropertyToArity(model);
+        Map<String, Integer> map = new HashMap<>();
+        for(int i = 0; i < graph.relation_num; ++i){
+            map.put(graph.predicates.get(i), 2);
+        }
+        return map;
     }
-//
+    //
     protected Map<String, List<String>[]> getFunctor2PromisingConstantMap(){
         Map<String, List<String>[]> map = new HashMap<>();
 //        List<String> list = new LinkedList<>();
@@ -328,8 +340,7 @@ public class SInCWithSQL {
             throws InterruptedSignal {
         switch (updateStatus) {
             case NORMAL:
-                if (extendedRule.getEval().value(config.evalMetric) >= originalRule.getEval().value(config.evalMetric)
-                    && extendedRule.length() < 4) { //TODO limit search space
+                if (extendedRule.length() < 4) { //TODO limit search space
                     candidates.add(extendedRule);
                 }
                 break;
@@ -365,9 +376,10 @@ public class SInCWithSQL {
         final long time_start = System.currentTimeMillis();
         try {
             /* 加载KB */
-            model = RDFModelHandler.getModel(kbPath);
-            stms = RDFModelHandler.getStmCnts(model);
-            consts = RDFModelHandler.getConsts(model);
+//            model = RDFModelHandler.getModel(kbPath);
+            graph = new Graph(kbPath);
+//            stms = RDFModelHandler.getStmCnts(model);
+//            consts = RDFModelHandler.getConsts(model);
             final long time_kb_loaded = System.currentTimeMillis();
             performanceMonitor.kbLoadTime = time_kb_loaded - time_start;
 

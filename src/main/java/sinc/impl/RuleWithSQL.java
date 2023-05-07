@@ -1,12 +1,13 @@
 package sinc.impl;
 
+import com.github.andrewoma.dexx.collection.Pair;
 import org.apache.jena.ext.com.google.common.collect.HashMultimap;
 import org.apache.jena.ext.com.google.common.collect.Multimap;
 import org.apache.jena.rdf.model.Model;
 import sinc.common.*;
 import sinc.util.RDF.RDFModelHandler;
 import sinc.util.RDF.RDFQuery;
-import sinc2.util.Pair;
+
 
 import java.util.*;
 
@@ -15,7 +16,7 @@ import java.util.*;
  * provide a function to translate a rule into SPARQL query
  */
 public class RuleWithSQL extends Rule {
-    public sinc2.rule.Eval returningEval;
+    public sinc.common.Eval returningEval;
     /**
      * pointer to rdf model
      */
@@ -65,12 +66,12 @@ public class RuleWithSQL extends Rule {
 
     @Override
     protected double factCoverage() {
-        return ((double) getEvidenceCnt()) / RDFModelHandler.getStmCnts(model)
-                ;
+        return ((double) evidence) / stms;
     }
 
     @Override
     protected Eval calculateEval() {
+        RDFQuery.evals ++;
         if(structure.get(0).args[0] != null && structure.get(0).args[1] != null
                 && structure.get(0).args[0].id == structure.get(0).args[1].id)
             return new Eval(eval, 0, 1, 1, getLength()); //不合要求的rule(head 上是两个bounded var就没有压缩的意义了)
@@ -98,6 +99,11 @@ public class RuleWithSQL extends Rule {
     }
 
     protected int getCounterExampleCnt(){
+        if(RDFQuery.map.containsKey("counter")){
+            RDFQuery.map.put("counter", RDFQuery.map.get("counter") + 1);
+        } else {
+            RDFQuery.map.put("counter", 1);
+        }
         int left_idx = 1; // free var holder in SPARQL
         int max_idx = boundedVars.size() - 1;
         if(structure.size() == 1)   return consts * consts - evidence;
@@ -167,6 +173,11 @@ public class RuleWithSQL extends Rule {
     }
 
     public int getEvidenceCnt(){
+        if(RDFQuery.map.containsKey("evi")){
+            RDFQuery.map.put("evi", RDFQuery.map.get("evi") + 1);
+        } else {
+            RDFQuery.map.put("evi", 1);
+        }
         int left_idx = 1; // free var holder in SPARQL
         int max_idx = boundedVars.size() - 1;
         boolean literal = false;

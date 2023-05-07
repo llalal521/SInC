@@ -10,6 +10,7 @@ public class FamilyVocabulary {
         public static final Property mother = cp("mother");
         public static final Property parent = cp("parent");
         public static final Property gender = cp("gender");
+        public static final Property wife = cp("wife");
 
         public FamilyVocabulary() {
         }

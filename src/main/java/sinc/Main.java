@@ -5,6 +5,8 @@ import sinc.common.Eval;
 import sinc.common.Model;
 import sinc.common.Dataset;
 import sinc.common.SincException;
+import sinc.impl.SInCWithSQL;
+import sinc.impl.cached.recal.SincWithRecalculateCache;
 
 public class Main {
 
@@ -241,7 +243,7 @@ public class Main {
                 1, validation, false, beam, false, metric, fc, cc, cs, scr, true,
                 -1.0, false, false
         );
-        return Model.getModel(model.getName(), config, data_path, result_path, log_path);
+        return new SincWithRecalculateCache(config, data_path, "", "");
     }
 
     protected static Options buildOptions() {

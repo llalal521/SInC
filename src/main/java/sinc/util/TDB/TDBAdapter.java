@@ -8,6 +8,6 @@ import org.apache.jena.tdb.TDBFactory;
 public class TDBAdapter {
     public static Model constructDB(String path){
         Dataset dataset = TDBFactory.createDataset("yago2s");
-
+        return dataset.getDefaultModel();
     }
 }
